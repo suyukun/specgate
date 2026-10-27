@@ -15,7 +15,12 @@
     "dist",
     "templates",
     "skills",
-    "README.md"
+    "README.md",
+    "README.zh-CN.md",
+    "INSTALL.md",
+    "CHANGELOG.md",
+    "THIRD_PARTY_NOTICES.md",
+    "LICENSES"
   ],
   "engines": {
     "node": ">=18"
