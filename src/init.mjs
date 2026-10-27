@@ -38,10 +38,11 @@ Options:
   --yes                   Write the suggested agent pointer files without asking.
   -h, --help              Show this help.
 
-Agent pointer files (ask-first): when .cursor/, .github/, or .windsurfrules exist,
-init suggests one-line pointers to AGENTS.md (.cursor/rules/agents.mdc,
-.github/copilot-instructions.md, .windsurf/rules/agents.md). Suggested content is
-printed; nothing is written unless --yes is passed.
+Agent pointer files (ask-first): when .cursor/, .github/, .windsurfrules, or a
+.windsurf/ directory exist, init suggests one-line pointers to AGENTS.md
+(.cursor/rules/agents.mdc, .github/copilot-instructions.md,
+.windsurf/rules/agents.md). Suggested content is printed; nothing is written
+unless --yes is passed.
 
 Uninstall: every file init created is listed with its sha256 in
 .specgate-manifest.json — delete those files (or git revert) and you are clean.`;
@@ -186,6 +187,7 @@ export async function runInit(argv) {
   if (existsSync(join(target, '.cursor'))) shimDefs.push({ detected: '.cursor/', rel: join('.cursor', 'rules', 'agents.mdc'), text: SHIM_CURSOR });
   if (existsSync(join(target, '.github'))) shimDefs.push({ detected: '.github/', rel: join('.github', 'copilot-instructions.md'), text: SHIM_MD });
   if (existsSync(join(target, '.windsurfrules'))) shimDefs.push({ detected: '.windsurfrules', rel: join('.windsurf', 'rules', 'agents.md'), text: SHIM_MD });
+  else if (existsSync(join(target, '.windsurf'))) shimDefs.push({ detected: '.windsurf/', rel: join('.windsurf', 'rules', 'agents.md'), text: SHIM_MD });
   const shimTaken = [], shimToWrite = [], shimSuggested = [];
   for (const s of shimDefs) {
     if (existsSync(join(target, s.rel))) shimTaken.push(s);

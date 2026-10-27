@@ -5,7 +5,7 @@
 // in AGENTS.md tolerated. Zero dependencies.
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { basename, join, resolve } from 'node:path';
-import { UsageError, parseArgs, toPosix } from './util.mjs';
+import { UsageError, parseArgs, toPosix, templateText, PKG_ROOT } from './util.mjs';
 
 const BOOL_FLAGS = ['strict', 'help'];
 
@@ -26,6 +26,14 @@ Per-stage requirements (five-doc kit):
             section in AGENTS.md)
   S2 S3     design spec (root DESIGN.md or a non-empty docs/design/) unless
             "<!-- design: exempt -->" appears in AGENTS.md
+
+Governance assertions (all findings, like the stage checks above):
+  kickoff   docs/plans/gate-*.md (the shipped template/example copies excluded)
+            must contain zero "NC-OPEN" decision cards — open cards block
+            coding dispatch; resolve them first.
+  stale     an AGENTS.md "<!-- template_version: N -->" older than the shipped
+            template reports a stale finding with an update hint; your file is
+            never edited (an AGENTS.md without the marker is not flagged).
 
 Options:
   --strict                    Findings fail the run (exit 1). Default: WARN, exit 0.
@@ -114,11 +122,11 @@ export function runCheck(argv) {
   }
 
   if (stage === 'exempt' || stage === 'frozen') {
-    console.log('SKIP ' + name + ' | ' + stage);
+    console.log('SKIP ' + name + ' (stage ' + stage + ')');
     return 0;
   }
   if (typeof stage === 'string' && stage.startsWith('merged:')) {
-    console.log('SKIP ' + name + ' | ' + stage + ' (docs live with the target project)');
+    console.log('SKIP ' + name + ' (stage ' + stage + ') — docs live with the target project');
     return 0;
   }
 
@@ -182,6 +190,48 @@ export function runCheck(argv) {
     }
   }
 
+  // ---- assertion: template_version stale (A-09/F-01) ----
+  // Compares the AGENTS.md header marker against the shipped template's.
+  // Behind -> one finding with an update hint. Never edits anything. An
+  // AGENTS.md without the marker (adopted, hand-written) is not flagged.
+  if (agentsText !== null) {
+    const mine = (agentsText.match(/<!--\s*template_version:\s*(\d+)\s*-->/) || [])[1];
+    let shipped = null;
+    try {
+      shipped = (templateText('AGENTS.template.md').match(/<!--\s*template_version:\s*(\d+)\s*-->/) || [])[1];
+    } catch { shipped = null; } // unreadable shipped template: skip, other rules still run
+    if (mine !== undefined && shipped !== null && Number(mine) < Number(shipped)) {
+      push(
+        'template_version stale — your ' + toPosix(agentsRel) + ' is behind the shipped template (' + mine + ' < ' + shipped + ')',
+        toPosix(agentsRel) + ' — header "<!-- template_version: ' + mine + ' -->" vs shipped templates/AGENTS.template.md "<!-- template_version: ' + shipped + ' -->"',
+        'the shipped template version marker "<!-- template_version: ' + shipped + ' -->" in your AGENTS.md (upgrades warn only — specgate never edits your file)',
+        'diff "' + toPosix(join(PKG_ROOT, 'templates', 'AGENTS.template.md')) + '" "' + toPosix(agentsRel) + '", merge by hand, bump the marker to ' + shipped + ', then rerun: specgate check' + (dirArg ? ' ' + dirArg : '')
+      );
+    }
+  }
+
+  // ---- assertion: NC-OPEN decision cards (A-02, kickoff gate) ----
+  // Every docs/plans/gate-*.md except the shipped template/example copies must
+  // be free of "NC-OPEN" at dispatch time. One finding per file, first line + count.
+  let gateEntries = [];
+  try { gateEntries = readdirSync(join(dir, plansRel)); } catch { /* no plans dir: per-stage rules already cover it */ }
+  for (const name of gateEntries.sort()) {
+    if (!name.startsWith('gate-') || !name.endsWith('.md')) continue;
+    if (name.endsWith('.template.md') || name.endsWith('.example.md')) continue;
+    let text;
+    try { text = readFileSync(join(dir, plansRel, name), 'utf8').replace(/\r\n/g, '\n'); } catch { continue; }
+    const hitLines = [];
+    text.split('\n').forEach((ln, i) => { if (ln.includes('NC-OPEN')) hitLines.push(i + 1); });
+    if (hitLines.length === 0) continue;
+    const rel = toPosix(join(plansRel, name));
+    push(
+      hitLines.length + ' NC-OPEN decision card' + (hitLines.length === 1 ? '' : 's') + ' in ' + rel + ' — resolve before dispatch (kickoff)',
+      rel + ':' + hitLines[0] + ' — "NC-OPEN" on line(s) ' + hitLines.join(', '),
+      'every card NC-RESOLVED or NC-N/A before coding dispatch, e.g. "| NC-1 | currency? | a | NC-RESOLVED: 1a — single currency; multi parked on the board |"',
+      'send the open cards to the owner as one numbered batch (solo mode: accept the recommended defaults), mark each NC-RESOLVED, then rerun: specgate check' + (dirArg ? ' ' + dirArg : '')
+    );
+  }
+
   // ---- report: every finding = where + expected + fix ----
   if (findings.length > 0) {
     console.log('specgate check — ' + dir + (stage ? ' (stage ' + stage + ')' : ''));
@@ -196,13 +246,13 @@ export function runCheck(argv) {
   }
   const stageLabel = stage ?? '-';
   if (findings.length === 0) {
-    console.log('PASS ' + name + ' | ' + stageLabel);
+    console.log('PASS ' + name + ' (stage ' + stageLabel + ')');
     return 0;
   }
   if (flags.strict) {
-    console.log('FAIL ' + name + ' | ' + stageLabel + ' | ' + findings.length + ' finding(s) — --strict');
+    console.log('FAIL ' + name + ' (stage ' + stageLabel + ') — ' + findings.length + ' finding(s) under --strict');
     return 1;
   }
-  console.log('WARN ' + name + ' | ' + stageLabel + ' | ' + findings.length + ' finding(s) — default mode; rerun with --strict to fail');
+  console.log('WARN ' + name + ' (stage ' + stageLabel + ') — ' + findings.length + ' finding(s) (advisory; rerun with --strict to fail)');
   return 0;
 }
