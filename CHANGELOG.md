@@ -56,5 +56,4 @@ work in. Everything the kit creates is plain markdown that stays in your reposit
 
 - **M-batch wording contradiction.** Symptom: the gate-doc template says an M batch fills sections A and D only, but the pre-dispatch checklist mentions the C1 task table. Trigger: writing your first M gate doc. Workaround: fill a minimal C1 (one row per task); template fix lands in v0.2.
 - **Placeholders are advisory.** Symptom: specgate check passes even when AGENTS.md still contains un-filled slots. Trigger: skipping the post-init review step. Workaround: search for the placeholder markers before your first dispatch; a checker lands in v0.2.
-- **init owner prompt on Ctrl+D.** Symptom: the interactive owner question aborts with a stack trace (start handles the same case cleanly). Trigger: pressing Ctrl+D during specgate init without --owner. Workaround: pass --owner or rerun; fix lands in v0.2.
 

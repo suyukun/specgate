@@ -1,3 +1,4 @@
+# G2b real-batch evidence — Repo: /tmp/sg-realbatch (ephemeral demo, md-toc) · Executor: Rose lead + qwen impl subagent · Window: 2026-10-27 21:00-21:20 +08
 7ac2ce4 docs: gate v1 converged (7 steps, TASK-4 backfilled) + handoff per specgate
 139ef4b feat: md-toc TASK-1..3 per gate doc v1 (AC-1..4)
 360fffb chore: specgate init S0

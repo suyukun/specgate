@@ -59,7 +59,7 @@ S0 先装两件。其余文档在项目发出「看得见的信号」后逐件�
 
 每条需求都写成 `When <condition>, the system must <observable behavior>`，并写明用哪个测试或命令来验。check 校验句式，对模糊词给出修正。一份完整填好的样例批——决策卡已答、七步 converge 全过——随包附带：[templates/gate-doc.example.md](templates/gate-doc.example.md)。
 
-**随包还有——跨会话交接（handoff）。** `rose-handoff` 技能在会话结束时写一份交接文档，新会话开始时读它，文件在 `handoffs/`。换工具、换窗口的成本估算约五分钟，而不是丢掉一个会话——这一流程 shaped by 真实项目两个月的每日使用。
+**随包还有——跨会话交接（handoff）。** `rose-handoff` 技能在会话结束时写一份交接文档，新会话开始时读它，文件在 `handoffs/`。换工具、换窗口的成本估算约五分钟，而不是丢掉一个会话——这套流程源自真实项目两个月的每日使用。
 
 ## 支持矩阵——装完不静默失败
 

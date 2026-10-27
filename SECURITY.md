@@ -44,8 +44,7 @@ Report privately through **GitHub Security Advisories** on this repository
 ("Security" → "Report a vulnerability"). That keeps the report confidential until a fix and
 advisory are ready.
 
-Email fallback: `security@TODO` _(placeholder — replace with the published security address
-before release)_.
+Email fallback: none for v0.1 — GitHub Security Advisories (above) is the single channel.
 
 Please do not open a public issue for an unpatched vulnerability.
 
