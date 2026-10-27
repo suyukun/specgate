@@ -75,7 +75,7 @@ Expected: three questions print, then one exact next command prints.
 
 Discipline at this step: read the questions to the user. Do not answer them on the user's behalf. The user picks. Then run the printed next command only after the user approves it.
 
-Bootstrap — creating `AGENTS.md` and the two S0 documents — follows the printed route. It is a conversation with the user, roughly 10 minutes at S0. Start it only when the user says go. If an `AGENTS.md` already exists, do not touch it; the route is `specgate init --adopt`, which lists conflicts for the user to decide.
+Bootstrap — creating `AGENTS.md` and the two S0 documents — follows the printed route. It is a conversation with the user — mostly conversation time — roughly 10 minutes at S0. Start it only when the user says go. If an `AGENTS.md` already exists, do not touch it; the route is `specgate init --adopt`, which lists conflicts for the user to decide.
 
 ## Step 5 — Optional wiring (each behind its own explicit yes)
 

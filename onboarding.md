@@ -9,7 +9,7 @@
 | 原则 | 落地点 |
 | --- | --- |
 | Onboarding＝一个可验证判据＋一条最短路径；不做功能导览 | 每条路径一个 DONE WHEN；`start` 只打印一条下一步命令 |
-| 单入口路由：命令再多，对外只暴露一个入口 | 第 1 层只有 start / check / handoff 三个动作；直接命令 `profile full` 显式解锁 |
+| 单入口路由：命令再多，对外只暴露一个入口 | 第 1 层只有 start / check / handoff 三个动作 |
 | 错误三段式：定位→正例→下一步命令；一次列全；失败不写文件 | 第 4 节规范＋5 个样例 |
 | 第一次验证在 30 秒内完成 | 安装验收＝`specgate --version` 打印一行版本号 |
 | ask-first 是全程纪律 | README 全部命令 ask-first 句式；INSTALL.md Rules 第 1 条 |
@@ -52,15 +52,15 @@ After: <执行后应看到的一行预期>   ← 该路径 DONE WHEN 的预告
 
 - 路由条件：Q1＝全新项目。
 - 打印命令：进入 `rose-bootstrap` 技能流程（5 问 → 起草 AGENTS.md → 安装 S0 两件）。
-- 时间预期如实告知：约 10 分钟。是与用户协作起草，不是脚本秒级完成。
-- **DONE WHEN（A）**：仓库根存在 `AGENTS.md` 且无 `{{占位符}}`；标题下有 `<!-- stage: S0 -->`；`docs/plans/gate-doc.template.md` 与 `docs/adr/README.md` 存在；`specgate check` 输出 `PASS (stage S0)`。
+- 时间预期如实告知：与 agent 协作全程约 10 分钟，其中大部分是对话时间。是与用户协作起草，不是脚本秒级完成。
+- **DONE WHEN（A）**：仓库根存在 `AGENTS.md` 且无 `{{占位符}}`；标题下有 `<!-- stage: S0 -->`；`docs/plans/gate-doc.template.md` 与 `docs/adr/README.md` 存在；`specgate check` 输出 `PASS <name> (stage S0)`。
 
 ### 路径 B —— 存量仓库（adopt）
 
 - 路由条件：Q1＝已有代码。
 - 打印命令：`specgate init --adopt`（add-only）。
-- 关键规则：已有 AGENTS.md 不覆盖 → 产出合并提案（缺哪些节、哪些规则冲突）逐行由人拍板；旧 to-do 原地不动，到 S1 上板时再统一登记并冻结旧清单。
-- **DONE WHEN（B）**：`git status` 只有新增、无修改；冲突清单（如有）已交用户逐条裁决；`specgate check` 输出 `PASS (stage S0)`，或明确列出未决冲突项——后者不算失败，算「等待裁决」的诚实状态。
+- 关键规则：已有 AGENTS.md 不覆盖 → 给出模板与你文件的 diff 命令（缺哪些节、哪些规则冲突），逐条由你裁决；旧 to-do 原地不动，到 S1 上板时再统一登记并冻结旧清单。
+- **DONE WHEN（B）**：`git status` 只有新增、无修改；冲突清单（如有）已交用户逐条裁决；`specgate check` 输出 `PASS <name> (stage S0)`，或明确列出未决冲突项——后者不算失败，算「等待裁决」的诚实状态。
 
 ### 路径 C —— solo 模式
 
@@ -75,20 +75,22 @@ After: <执行后应看到的一行预期>   ← 该路径 DONE WHEN 的预告
 | 全新 | solo | 搭治理 | `rose-bootstrap`（solo 模式） |
 | 全新 | with-owner | 搭治理 | `rose-bootstrap` |
 | 存量 | 任意 | 搭治理 | `specgate init --adopt` |
-| 存量 | 任意 | 补缺件 | `specgate init --adopt --fill` |
+| 存量 | 任意 | 补缺件 | `specgate init --adopt`（或 `specgate init --stage S<n>`） |
 | 任意 | 任意 | 只查 | `specgate check`（不改任何文件） |
 
-## 3. 空态微文案（三状态三句话，每句只有一个动作）
+## 3. 空态微文案（三状态三句话，每句只有一个动作）——(v0.2) 本节为设计稿目标，v0.1 不交付
 
 | 状态 | 文案（产品文案为英文） | 唯一动作 |
 | --- | --- | --- |
 | 空仓库 | `No governance files yet. AGENTS.md is the first one.` | run `specgate start` |
-| 有 AGENTS.md 缺件 | `AGENTS.md found. Missing: ADR index, gate-doc template.` | run `specgate init --fill` |
-| 有冲突 | `2 rule conflicts found.` | run `specgate check --conflicts` |
+| 有 AGENTS.md 缺件 | `AGENTS.md found. Missing: ADR index, gate-doc template.` | run `specgate init --adopt` |
+| 有冲突 | `2 rule conflicts found.` | run `specgate init --adopt`（查看 exists, untouched 冲突列表） |
 
 ## 4. 错误提示三段式 —— 规范与 5 个样例
 
-**规范**：每条错误＝定位（`文件:行 [规则]`）→ 反例 / 正例各一行 → `Next:` 下一步命令；一次列全、按文件行序；校验失败时一个文件都不写，末行固定打印 `No files were changed.`。
+**规范（v0.2 目标样式）**：每条错误＝定位（`文件:行 [规则]`）→ 反例 / 正例各一行 → `Next:` 下一步命令；一次列全、按检查项顺序排列；校验失败时一个文件都不写，末行固定打印 `No files were changed.`。以下样例为该目标样式的设计稿。
+
+**v0.1 实际行为**：check 每条 finding 按 where / expected / fix 三段输出，fix 内含可复制命令；一次列全、按检查项顺序（plans→adr→board→arch→design）排列；不写任何文件（暂无 `文件:行` 精确定位与 `No files were changed.` 末行）。
 
 **样例 1 · 不是 git 仓库**（预检失败，新用户最高频）
 
@@ -130,7 +132,7 @@ No files were changed.
 No files were changed.
 ```
 
-**样例 5 · converge 缺 ADR 引用**
+**样例 5 · converge 缺 ADR 引用**（v0.2：ADR 挂钩机判）
 
 ```text
 ✗ docs/plans/gate-payment_v1.md:88 [adr] L batch converging without an adr: reference.
@@ -150,7 +152,7 @@ No files were changed.
 
 ## 6. 性能与验证口径（按裁决表）
 
-- `init` 冷启动 ≤3s：纯 node 拷贝口径（本地模板复制；不含网络、不含 npm install 耗时）。
+- `init` 冷启动 well under a second（实测约 30ms）：纯 node 拷贝口径（本地模板复制；不含网络、不含 npm install 耗时）。
 - backlog（看板）命令性能另行实测后补充；v1 文档不对其承诺。
 - 装好后全程离线可用（已写入 README 信任卖点）。
 - 本设计稿所有 DONE WHEN 均为「可执行命令＋预期输出」，不引入「感觉成功」这一档。
