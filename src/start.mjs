@@ -37,8 +37,9 @@ Options:
   --intent      <setup|fill|check>    Answer Q3 without asking
   -h, --help                          Show this help
 
-Routing: A greenfield -> rose-bootstrap skill · B existing repo -> specgate
+Routing: A greenfield -> specgate init --stage S0 · B existing repo -> specgate
 init --adopt · fill missing docs -> specgate init · check -> specgate check.
+The rose-bootstrap skill is the optional deep-dive behind Routes A/B.
 Non-interactive runs (no TTY) accept the precheck defaults.`;
 
 const SKILL_PATH = join(PKG_ROOT, 'skills', 'rose-bootstrap', 'SKILL.md');
@@ -234,7 +235,17 @@ export async function runStart(argv) {
     questions.forEach((q, i) => { if (!flagged[String(i + 1)]) { toAsk.push(q); idx.push(i); } });
     if (toAsk.length > 0) {
       console.log('');
-      const ans = await askThree(toAsk);
+      let ans;
+      try {
+        ans = await askThree(toAsk);
+      } catch (e) {
+        // Ctrl+D (EOF) / an aborted readline must not dump a stack trace.
+        if (e && (e.name === 'AbortError' || e.code === 'ABORT_ERR')) {
+          console.log('No answers given. No files were changed.');
+          return 0;
+        }
+        throw e;
+      }
       const merged = [a1, a2, a3];
       idx.forEach((i, k) => { merged[i] = ans[k]; });
       a1 = merged[0]; a2 = merged[1]; a3 = merged[2];
@@ -264,7 +275,7 @@ export async function runStart(argv) {
     after = '"PASS ' + name + ' (stage ' + agents.stage + ')" — the missing docs (' + missingForStage.join(', ') + ') now exist; existing files untouched';
   } else if (a1 === 'greenfield') {
     route = 'A';
-    next = (a2 === 'solo' ? 'rose-bootstrap skill (solo mode) — ' : 'rose-bootstrap skill — ') + SKILL_PATH + '  (5 questions, drafts AGENTS.md with you, installs the S0 docs; ~10 minutes with your agent)';
+    next = 'specgate init' + suffix + ' --stage S0' + (a2 === 'solo' ? ' --owner me' : '') + '   # one command: scaffolds AGENTS.md + the two S0 docs (add-only, ~1 minute)';
     after = 'AGENTS.md at the root with <!-- stage: S0 --> and no {{placeholders}} — "specgate check' + suffix + '" prints "PASS ' + name + ' (stage S0)"';
   } else {
     route = 'B';
@@ -276,7 +287,9 @@ export async function runStart(argv) {
   console.log('Route: ' + route + ' \u00b7 mode: ' + a2);
   console.log('Next:  ' + next);
   console.log('After: ' + after);
+  if (route === 'A') console.log('Optional deep-dive: rose-bootstrap skill' + (a2 === 'solo' ? ' (solo mode)' : '') + ' — ' + SKILL_PATH + '  (agent walkthrough: 5 questions, drafts AGENTS.md with you; ~10 minutes)');
+  if (route === 'B') console.log('Optional deep-dive: rose-bootstrap skill (adopt path) — ' + SKILL_PATH);
   if (fillFallback) console.log('(note: no AGENTS.md found — "fill missing docs" needs one; routed to set up governance instead)');
-  console.log('Ask-first: the command above runs only after you approve it. Nothing was written — start is read-only.');
+  console.log('Ask-first: run the Next command only after you approve what it does. Nothing was written — start is read-only.');
   return 0;
 }

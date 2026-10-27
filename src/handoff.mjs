@@ -5,9 +5,9 @@
 // --init: create today's skeleton in handoffs/ — ask-first discipline: the
 // exact file and its content are printed, THEN it is written; an existing
 // file is never modified (add-only, same rule as init). Zero dependencies.
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join, resolve } from 'node:path';
-import { UsageError, parseArgs, toPosix, PKG_ROOT } from './util.mjs';
+import { UsageError, parseArgs, toPosix, projectNameFromAgents, PKG_ROOT } from './util.mjs';
 
 const BOOL_FLAGS = ['init', 'help'];
 
@@ -80,6 +80,32 @@ Continue: <the one sentence the next session should act on first — the most im
 `;
 }
 
+// INDEX.md is created by --init when missing (walkthrough blocker 6: the Next
+// step used to point at a file nothing ever created). Never modified once it
+// exists — your entries are yours.
+const HANDOFF_INDEX = `# Handoff Index
+
+Newest first: each handoff adds one row on top, so the next session reads one
+line here instead of listing a directory.
+
+| Date | Handoff | Continue (the next session's first action) |
+| --- | --- | --- |
+| — | *(no handoffs yet — add yours on top)* | — |
+
+Row format: | YYYY-MM-DD | [handoff-YYYY-MM-DD-<topic>.md](handoff-YYYY-MM-DD-<topic>.md) | <the one-sentence Continue line from that handoff> |
+
+<!-- created by specgate handoff --init; this file is yours to edit by hand -->
+`;
+
+function projectDisplayName(dir) {
+  try {
+    const text = readFileSync(join(dir, 'AGENTS.md'), 'utf8').replace(/^\uFEFF/, '').replace(/\r\n/g, '\n');
+    const v = projectNameFromAgents(text);
+    if (v) return v;
+  } catch { /* no AGENTS.md — fall back to the directory name */ }
+  return basename(dir) || dir;
+}
+
 function printRoutingAndSkeleton() {
   console.log('specgate handoff — cross-session handoff (routes to the rose-handoff skill)');
   console.log('');
@@ -131,7 +157,18 @@ export async function runHandoff(argv) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new UsageError('invalid --date ' + JSON.stringify(date) + ' (expected YYYY-MM-DD)');
   const rel = join('handoffs', 'handoff-' + date + '-' + topic + '.md');
   const abs = join(dir, rel);
-  const text = skeleton(topic, date, basename(dir) || dir);
+  const text = skeleton(topic, date, projectDisplayName(dir));
+  const indexRel = join('handoffs', 'INDEX.md');
+  const indexAbs = join(dir, indexRel);
+  const indexMissing = !existsSync(indexAbs); // created below — never modified once it exists
+  const writeIndex = () => {
+    mkdirSync(dirname(indexAbs), { recursive: true });
+    try {
+      writeFileSync(indexAbs, HANDOFF_INDEX);
+    } catch (e) {
+      throw new UsageError('cannot write ' + toPosix(indexRel) + ': ' + (e && e.code ? e.code : String(e)));
+    }
+  };
 
   // ask-first: print the exact file and content BEFORE anything is written.
   console.log('specgate handoff --init — ' + dir);
@@ -139,17 +176,34 @@ export async function runHandoff(argv) {
   if (existsSync(abs)) {
     console.log('Already exist — NOT touched (handoff never modifies existing files; you decide):');
     console.log('  = ' + toPosix(rel) + '  — exists, untouched');
+    if (indexMissing) {
+      console.log('');
+      console.log('Files to write (1):');
+      console.log('  + ' + toPosix(indexRel) + '  — handoff index: table header + row format (newest on top)');
+      console.log('');
+      console.log('Content — ' + toPosix(indexRel) + ':');
+      for (const line of HANDOFF_INDEX.split('\n')) console.log('  | ' + line);
+      writeIndex();
+      console.log('');
+      console.log('Done: 1 written.');
+    }
     console.log('');
     console.log('Pick a different --topic, or edit the file by hand (it is yours).');
-    console.log('Next: fill the <...> slots, update handoffs/INDEX.md (newest on top), and read the file back.');
+    console.log('Next: fill the <...> slots, add the entry to handoffs/INDEX.md' + (indexMissing ? ' (just created)' : '') + ' (newest on top), and read the file back.');
     console.log('Full flow: ' + SKILL_PATH);
     return 0;
   }
-  console.log('Files to write (1):');
+  console.log('Files to write (' + (indexMissing ? 2 : 1) + '):');
   console.log('  + ' + toPosix(rel) + '  — handoff skeleton: three-part scope contract (What / Not in this handoff / Out of scope)');
+  if (indexMissing) console.log('  + ' + toPosix(indexRel) + '  — handoff index: table header + row format (newest on top)');
   console.log('');
   console.log('Content:');
   for (const line of text.split('\n')) console.log('  | ' + line);
+  if (indexMissing) {
+    console.log('');
+    console.log('Content — ' + toPosix(indexRel) + ':');
+    for (const line of HANDOFF_INDEX.split('\n')) console.log('  | ' + line);
+  }
 
   mkdirSync(dirname(abs), { recursive: true });
   try {
@@ -157,10 +211,11 @@ export async function runHandoff(argv) {
   } catch (e) {
     throw new UsageError('cannot write ' + toPosix(rel) + ': ' + (e && e.code ? e.code : String(e)));
   }
+  if (indexMissing) writeIndex();
 
   console.log('');
-  console.log('Done: 1 written.');
-  console.log('Next: 1) fill the <...> slots  2) add the entry to handoffs/INDEX.md (newest on top)  3) read the file back — "I wrote it" without a read-back is the known failure mode');
+  console.log('Done: ' + (indexMissing ? 2 : 1) + ' written.');
+  console.log('Next: 1) fill the <...> slots  2) add the entry to handoffs/INDEX.md' + (indexMissing ? ' (just created — add your row above the placeholder)' : ' (newest on top)') + '  3) read the file back — "I wrote it" without a read-back is the known failure mode');
   console.log('Full flow: ' + SKILL_PATH);
   return 0;
 }

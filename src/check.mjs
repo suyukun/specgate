@@ -5,7 +5,7 @@
 // in AGENTS.md tolerated. Zero dependencies.
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { basename, join, resolve } from 'node:path';
-import { UsageError, parseArgs, toPosix, templateText, PKG_ROOT } from './util.mjs';
+import { UsageError, parseArgs, toPosix, templateText, projectNameFromAgents, PKG_ROOT } from './util.mjs';
 
 const BOOL_FLAGS = ['strict', 'help'];
 
@@ -29,8 +29,10 @@ Per-stage requirements (five-doc kit):
 
 Governance assertions (all findings, like the stage checks above):
   kickoff   docs/plans/gate-*.md (the shipped template/example copies excluded)
-            must contain zero "NC-OPEN" decision cards — open cards block
-            coding dispatch; resolve them first.
+            must contain zero open decision cards — ledger table rows whose
+            State cell reads exactly "NC-OPEN". Enum definition rows (naming
+            NC-OPEN together with NC-RESOLVED) and unfilled <...> example rows
+            are teaching text, not cards. Open cards block coding dispatch.
   stale     an AGENTS.md "<!-- template_version: N -->" older than the shipped
             template reports a stale finding with an update hint; your file is
             never edited (an AGENTS.md without the marker is not flagged).
@@ -55,6 +57,29 @@ the target project (created by "specgate init").`;
 const STAGE_RE = /<!--\s*stage:\s*([A-Za-z0-9:.-]+)\s*-->/;
 const VALID_STAGE = /^(S[0-3]|exempt|frozen|merged:[A-Za-z0-9.-]+)$/;
 
+// A table row's State cell is the open-card marker only when the cell reads
+// exactly NC-OPEN (backticks tolerated). "NC-OPEN: soon" in a question cell
+// or a prose mention does not match.
+const OPEN_STATE_CELL = /^`?NC-OPEN`?$/;
+// Unfilled template furniture: a cell still holding a <...> or {{...}}
+// placeholder ("Replace every {{...}} and every <...>" — the template's own
+// rule). Such rows are examples, not cards.
+const PLACEHOLDER_CELL = /<[^<>|]*>|\{\{[^{}|]*\}\}/;
+
+/** Line numbers of open decision cards: ledger table rows whose State cell is exactly "NC-OPEN". */
+export function openCardLines(text) {
+  const hits = [];
+  text.split('\n').forEach((ln, i) => {
+    if (!ln.includes('|') || !ln.includes('NC-OPEN')) return; // not a table row / no state
+    if (ln.includes('NC-RESOLVED')) return; // state-enum definition row, not an open card
+    const cells = ln.split('|').map((c) => c.trim());
+    if (!cells.some((c) => OPEN_STATE_CELL.test(c))) return; // State cell must be exactly NC-OPEN
+    if (cells.some((c) => PLACEHOLDER_CELL.test(c))) return; // unfilled template example row
+    hits.push(i + 1);
+  });
+  return hits;
+}
+
 export function runCheck(argv) {
   argv = argv.map((a) => (a === '-h' ? '--help' : a));
   const { flags, positionals } = parseArgs(argv, BOOL_FLAGS);
@@ -63,7 +88,7 @@ export function runCheck(argv) {
   const dir = resolve(positionals[0] ?? '.');
   if (!existsSync(dir)) throw new UsageError('project directory not found: ' + dir);
   const dirArg = positionals[0];
-  const name = basename(dir) || dir;
+  const dirName = basename(dir) || dir;
 
   const docsDir = flags['docs-dir'] ?? 'docs';
   const agentsRel = flags['agents-file'] ?? 'AGENTS.md';
@@ -94,6 +119,10 @@ export function runCheck(argv) {
       initCmd('S0') + '   # or restore the file from git'
     );
   }
+
+  // Display name: the substituted "> Project: X" header of AGENTS.md beats the
+  // directory name (walkthrough aside: "PASS ferment-tracker" for "Ferment").
+  const name = projectNameFromAgents(agentsText) ?? dirName;
 
   // Strip inline code spans before marker detection: the shipped template
   // quotes "<!-- design: exempt -->" (and marker syntax) in prose inside
@@ -211,22 +240,25 @@ export function runCheck(argv) {
   }
 
   // ---- assertion: NC-OPEN decision cards (A-02, kickoff gate) ----
-  // Every docs/plans/gate-*.md except the shipped template/example copies must
-  // be free of "NC-OPEN" at dispatch time. One finding per file, first line + count.
+  // A card is open only when a decision-ledger table row's State cell reads
+  // exactly "NC-OPEN". Teaching prose inside a copied template (the kickoff
+  // rule sentence, the grep hint) is not a table row and never counts; a row
+  // naming NC-OPEN together with NC-RESOLVED is a state-enum definition, not
+  // an open card; a row still holding <...>/{{...}} placeholders is an
+  // unfilled template example. One finding per file, first line + card count.
   let gateEntries = [];
   try { gateEntries = readdirSync(join(dir, plansRel)); } catch { /* no plans dir: per-stage rules already cover it */ }
-  for (const name of gateEntries.sort()) {
-    if (!name.startsWith('gate-') || !name.endsWith('.md')) continue;
-    if (name.endsWith('.template.md') || name.endsWith('.example.md')) continue;
+  for (const fname of gateEntries.sort()) {
+    if (!fname.startsWith('gate-') || !fname.endsWith('.md')) continue;
+    if (fname.endsWith('.template.md') || fname.endsWith('.example.md')) continue;
     let text;
-    try { text = readFileSync(join(dir, plansRel, name), 'utf8').replace(/\r\n/g, '\n'); } catch { continue; }
-    const hitLines = [];
-    text.split('\n').forEach((ln, i) => { if (ln.includes('NC-OPEN')) hitLines.push(i + 1); });
+    try { text = readFileSync(join(dir, plansRel, fname), 'utf8').replace(/\r\n/g, '\n'); } catch { continue; }
+    const hitLines = openCardLines(text);
     if (hitLines.length === 0) continue;
-    const rel = toPosix(join(plansRel, name));
+    const rel = toPosix(join(plansRel, fname));
     push(
       hitLines.length + ' NC-OPEN decision card' + (hitLines.length === 1 ? '' : 's') + ' in ' + rel + ' — resolve before dispatch (kickoff)',
-      rel + ':' + hitLines[0] + ' — "NC-OPEN" on line(s) ' + hitLines.join(', '),
+      rel + ':' + hitLines[0] + ' — open decision-ledger row(s) "NC-OPEN" on line(s) ' + hitLines.join(', '),
       'every card NC-RESOLVED or NC-N/A before coding dispatch, e.g. "| NC-1 | currency? | a | NC-RESOLVED: 1a — single currency; multi parked on the board |"',
       'send the open cards to the owner as one numbered batch (solo mode: accept the recommended defaults), mark each NC-RESOLVED, then rerun: specgate check' + (dirArg ? ' ' + dirArg : '')
     );

@@ -70,3 +70,17 @@ export function parseArgs(argv, booleanFlags) {
 export function toPosix(p) {
   return p.split('\\').join('/');
 }
+
+/**
+ * The display project name: the substituted "> Project: X · ..." header of an
+ * adopted AGENTS.md beats the directory name (walkthrough aside: check/handoff
+ * printed "ferment-tracker" for a project named "Ferment"). Null when the file
+ * has no header or the value is still an unsubstituted {{PROJECT_NAME}}.
+ */
+export function projectNameFromAgents(agentsText) {
+  if (typeof agentsText !== 'string') return null;
+  const m = agentsText.match(/^>\s*Project:\s*([^\n\u00b7]+?)\s*(?:\u00b7|\n|$)/m);
+  const v = m ? m[1].trim() : null;
+  if (!v || v.includes('{{')) return null;
+  return v;
+}

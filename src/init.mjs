@@ -23,7 +23,9 @@ Options:
   --stage <S0|S1|S2|S3>   What to install. Default: the stage marker of an existing
                           AGENTS.md when present, else S0 (explicit flag wins).
                           S0  : AGENTS.md + gate-doc template (docs/plans/) + ADR index
-                                (docs/adr/README.md) — the two S0 documents.
+                                (docs/adr/README.md) + ADR template
+                                (docs/adr/adr-template.md) — the two S0 documents
+                                plus the blank ADR you copy per decision.
                           S1+ : the S0 set + plain task board (docs/BACKLOG.md) +
                                 architecture current-state doc (docs/architecture/current.md).
                           S2/S3 install the S1 set; the design spec stays yours to add
@@ -57,6 +59,41 @@ a newer decision supersedes via the status line and a pointer.
 | ADR | Decision | Status |
 | --- | --- | --- |
 | — | *(nothing recorded yet)* | — |
+
+<!-- created by specgate; this file is yours to edit by hand -->`;
+
+// Minimal ADR template (five sections). Used only when templates/adr-template.md
+// is absent — the shipped-template copy wins whenever the file exists.
+const ADR_TEMPLATE = `# ADR-NNNN: <decision in one line> (YYYY-MM-DD)
+
+> Status: proposed | accepted | superseded by ADR-NNNN | withdrawn
+> Decider: <owner> | <agent name> (mark self-decided agents)
+> Related: TASK-xxx / gate doc path / ADR replaced by this one
+
+Copy this file to docs/adr/NNNN-<slug>.md and fill it in. One decision per
+file; old ADRs are never rewritten — a newer one supersedes via the status
+line. Full format notes: "Appendix A — ADR template" in AGENTS.md.
+
+## Status
+
+proposed
+
+## Context
+
+Current state, why decide now, what drives the change.
+
+## Decision
+
+<option X, in one sentence>
+
+## Consequences
+
+Positive / cost / risk / how to reverse.
+
+## Alternatives
+
+1. <option A> — rejected because <reason>
+2. <option B> — rejected because <reason>
 
 <!-- created by specgate; this file is yours to edit by hand -->`;
 
@@ -176,6 +213,19 @@ export async function runInit(argv) {
 
   writes.push({ rel: join(docsDir, 'plans', 'gate-doc.template.md'), text: templateText('gate-doc.template.md'), origin: 'templates/gate-doc.template.md — pure copy, no substitution' });
   writes.push({ rel: join(docsDir, 'adr', 'README.md'), text: ADR_INDEX, origin: 'generated — ADR index (S0 doc 2/2)' });
+
+  // ADR template: shipped templates/adr-template.md when present, else the
+  // minimal five-section fallback above (walkthrough blocker 4: init never
+  // shipped the ADR template the rose-bootstrap skill asks for).
+  let adrTplText, adrTplOrigin;
+  try {
+    adrTplText = templateText('adr-template.md');
+    adrTplOrigin = 'templates/adr-template.md — pure copy, no substitution';
+  } catch {
+    adrTplText = ADR_TEMPLATE;
+    adrTplOrigin = 'generated — minimal ADR template (Status / Context / Decision / Consequences / Alternatives; templates/adr-template.md not shipped)';
+  }
+  writes.push({ rel: join(docsDir, 'adr', 'adr-template.md'), text: adrTplText, origin: adrTplOrigin });
 
   if (stage !== 'S0') {
     writes.push({ rel: join(docsDir, 'BACKLOG.md'), text: BOARD_MD, origin: 'generated — plain task board (S1 doc 3)' });

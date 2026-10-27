@@ -39,11 +39,14 @@ console.log('T1 empty-dir init --stage S0');
   ok('T1 stage marker S0', agents.includes('<!-- stage: S0 -->'));
   ok('T1 gate-doc template is a pure byte copy', readFileSync(join(t, 'docs', 'plans', 'gate-doc.template.md'), 'utf8') === GATE_TPL);
   ok('T1 ADR index created', existsSync(join(t, 'docs', 'adr', 'README.md')));
+  ok('T1 ADR template created', existsSync(join(t, 'docs', 'adr', 'adr-template.md')));
+  const adrTpl = readFileSync(join(t, 'docs', 'adr', 'adr-template.md'), 'utf8');
+  ok('T1 ADR template has the five sections', ['## Status', '## Context', '## Decision', '## Consequences', '## Alternatives'].every((s) => adrTpl.includes(s)), adrTpl.slice(0, 200));
   ok('T1 S1 docs NOT installed at S0', !existsSync(join(t, 'docs', 'BACKLOG.md')) && !existsSync(join(t, 'docs', 'architecture')));
   const m = JSON.parse(readFileSync(join(t, '.specgate-manifest.json'), 'utf8'));
-  ok('T1 manifest lists 3 files with sha256', Object.keys(m.files).length === 3 && /^[0-9a-f]{64}$/.test(m.files['AGENTS.md'].sha256));
-  ok('T1 manifest keys are posix paths', m.files['docs/plans/gate-doc.template.md'] !== undefined);
-  ok('T1 plan printed before write', /Files to write \(4\):/.test(r.stdout) && r.stdout.indexOf('Files to write') < r.stdout.indexOf('Done:'));
+  ok('T1 manifest lists 4 files with sha256', Object.keys(m.files).length === 4 && /^[0-9a-f]{64}$/.test(m.files['AGENTS.md'].sha256));
+  ok('T1 manifest keys are posix paths', m.files['docs/plans/gate-doc.template.md'] !== undefined && m.files['docs/adr/adr-template.md'] !== undefined);
+  ok('T1 plan printed before write', /Files to write \(5\):/.test(r.stdout) && r.stdout.indexOf('Files to write') < r.stdout.indexOf('Done:'));
 }
 
 // ---- T2: rerun is idempotent and add-only ----
@@ -63,14 +66,14 @@ console.log('T3 check PASS at S0');
 {
   const t = join(root, 't1');
   const r = run(['check', t]);
-  ok('T3 exit 0 + PASS (stage S0) format', r.status === 0 && /PASS t1 \(stage S0\)/.test(r.stdout), r.stdout);
+  ok('T3 exit 0 + PASS uses AGENTS.md project name (Demo)', r.status === 0 && /PASS Demo \(stage S0\)/.test(r.stdout), r.stdout);
 }
 console.log('T4 check WARN (ADR index removed)');
 {
   const t = join(root, 't1');
   rmSync(join(t, 'docs', 'adr'), { recursive: true, force: true });
   const w = run(['check', t]);
-  ok('T4 exit 0 + WARN (stage S0) format', w.status === 0 && /WARN t1 \(stage S0\) — 1 finding/.test(w.stdout), w.stdout);
+  ok('T4 exit 0 + WARN (stage S0) format', w.status === 0 && /WARN Demo \(stage S0\) — 1 finding/.test(w.stdout), w.stdout);
   ok('T4 three-part finding', /where    :/.test(w.stdout) && /expected :/.test(w.stdout) && /fix      :/.test(w.stdout));
   ok('T4 fix suggests init', /specgate init .* --stage S0/.test(w.stdout));
 }
@@ -78,7 +81,7 @@ console.log('T5 check FAIL under --strict');
 {
   const t = join(root, 't1');
   const s = run(['check', t, '--strict']);
-  ok('T5 exit 1 + FAIL (stage S0) format', s.status === 1 && /FAIL t1 \(stage S0\)/.test(s.stdout), s.stdout);
+  ok('T5 exit 1 + FAIL (stage S0) format', s.status === 1 && /FAIL Demo \(stage S0\)/.test(s.stdout), s.stdout);
 }
 
 // ---- T6: adopt on an oddly-shaped repo (docs/decisions instead of docs/adr) ----
@@ -112,7 +115,7 @@ console.log('T7 init --stage S1 → check PASS');
   ok('T7 stage marker S1', readFileSync(join(t, 'AGENTS.md'), 'utf8').includes('<!-- stage: S1 -->'));
   ok('T7 board + architecture installed', existsSync(join(t, 'docs', 'BACKLOG.md')) && existsSync(join(t, 'docs', 'architecture', 'current.md')));
   const c = run(['check', t]);
-  ok('T7 check PASS at S1', c.status === 0 && /PASS t7-s1 \(stage S1\)/.test(c.stdout), c.stdout);
+  ok('T7 check PASS at S1', c.status === 0 && /PASS Demo \(stage S1\)/.test(c.stdout), c.stdout);
 }
 
 // ---- T8: S2 design requirement ----
@@ -126,11 +129,11 @@ console.log('T8 S2 design: missing → WARN; exempt marker / root DESIGN.md → 
   ok('T8 S2 missing design → WARN exit 0', w.status === 0 && /Design spec missing/.test(w.stdout), w.stdout);
   writeFileSync(join(t, 'AGENTS.md'), s2agents + '\n<!-- design: exempt -->\n');
   const e = run(['check', t]);
-  ok('T8 design: exempt → PASS', e.status === 0 && /PASS t7-s1 \(stage S2\)/.test(e.stdout), e.stdout);
+  ok('T8 design: exempt → PASS', e.status === 0 && /PASS Demo \(stage S2\)/.test(e.stdout), e.stdout);
   writeFileSync(join(t, 'DESIGN.md'), '# Design\n');
   writeFileSync(join(t, 'AGENTS.md'), s2agents);
   const d = run(['check', t, '--strict']);
-  ok('T8 root DESIGN.md alternative → strict PASS', d.status === 0 && /PASS t7-s1 \(stage S2\)/.test(d.stdout), d.stdout);
+  ok('T8 root DESIGN.md alternative → strict PASS', d.status === 0 && /PASS Demo \(stage S2\)/.test(d.stdout), d.stdout);
 }
 
 // ---- T9: skip states, hard findings, CRLF tolerance ----
@@ -246,7 +249,8 @@ console.log('T13 specgate start — precheck, routing, read-only');
   const routeLines = b.stdout.split('\n').filter((l) => /^(Route:|Next:  |After:)/.test(l));
   ok('T13 exactly Route/Next/After three lines', routeLines.length === 3, JSON.stringify(routeLines));
   ok('T13 Route A solo', /^Route: A · mode: solo$/.test(routeLines[0]), routeLines[0]);
-  ok('T13 Next points at rose-bootstrap skill', /rose-bootstrap .*SKILL\.md/.test(routeLines[1]), routeLines[1]);
+  ok('T13 Route A Next is a copyable init command', /^Next:  specgate init .*--stage S0/.test(routeLines[1]), routeLines[1]);
+  ok('T13 Route A skill is the Optional deep-dive line', /^Optional deep-dive: rose-bootstrap skill .*SKILL\.md/m.test(b.stdout), b.stdout);
   ok('T13 After previews PASS (stage S0)', /PASS t13-green \(stage S0\)/.test(routeLines[2]), routeLines[2]);
   ok('T13 non-interactive defaults note', /non-interactive run/.test(b.stdout), b.stdout);
   ok('T13 read-only: no file changed', walk(b1) === before, walk(b1));
@@ -329,12 +333,15 @@ console.log('T14 specgate handoff — routing template + --init');
   const b = run(['handoff', t, '--init', '--topic', 'cli-card', '--date', '2026-10-27']);
   const rel = join('handoffs', 'handoff-2026-10-27-cli-card.md');
   ok('T14 --init exit 0', b.status === 0, b.stderr);
-  ok('T14 file plan printed before Done', b.stdout.indexOf('Files to write (1):') !== -1 && b.stdout.indexOf('Files to write (1):') < b.stdout.indexOf('Done: 1 written.'), b.stdout);
+  ok('T14 file plan printed before Done', /Files to write \(2\):/.test(b.stdout) && b.stdout.indexOf('Files to write') < b.stdout.indexOf('Done: 2 written.'), b.stdout);
+  ok('T14 INDEX.md created alongside the skeleton', existsSync(join(t, 'handoffs', 'INDEX.md')) && /\+ handoffs\/INDEX\.md /.test(b.stdout), b.stdout);
+  const idx = readFileSync(join(t, 'handoffs', 'INDEX.md'), 'utf8');
+  ok('T14 INDEX carries table header + row format', /\| Date \| Handoff \| Continue/.test(idx) && /Row format:/.test(idx), idx);
   ok('T14 file created', existsSync(join(t, rel)));
   const doc = readFileSync(join(t, rel), 'utf8');
   ok('T14 content has header fields', doc.includes('# Handoff: cli-card (2026-10-27)') && doc.includes('Project: t14') && /Purpose: <end of day \| window rotation \| switching tool>/.test(doc) && /Continue: <the one sentence/.test(doc), doc.slice(0, 200));
   ok('T14 content has What / Not in this handoff / Out of scope', doc.includes('## What — in this handoff') && doc.includes('## Not in this handoff — stays with the original session') && doc.includes('## Out of scope — a handoff never does this'), doc.slice(0, 400));
-  ok('T14 index + read-back reminders printed', /handoffs\/INDEX\.md \(newest on top\)/.test(b.stdout) && /read the file back/.test(b.stdout), b.stdout);
+  ok('T14 index + read-back reminders printed', /handoffs\/INDEX\.md \(just created/.test(b.stdout) && /read the file back/.test(b.stdout), b.stdout);
 
   // c) rerun with same topic/date: exists, untouched (byte-identical)
   const before = readFileSync(join(t, rel), 'utf8');
@@ -342,6 +349,7 @@ console.log('T14 specgate handoff — routing template + --init');
   ok('T14 rerun exit 0', c.status === 0, c.stderr);
   ok('T14 rerun says exists, untouched', /exists, untouched/.test(c.stdout), c.stdout);
   ok('T14 rerun never modified the file', readFileSync(join(t, rel), 'utf8') === before);
+  ok('T14 rerun keeps INDEX.md untouched too', readFileSync(join(t, 'handoffs', 'INDEX.md'), 'utf8') === idx);
 
   // d) default topic "session" and today's date
   const d = run(['handoff', t, '--init']);
@@ -373,7 +381,7 @@ console.log('T15 check NC-OPEN assertion (kickoff gate)');
   const b = run(['check', t]);
   ok('T15 NC-OPEN → WARN exit 0', b.status === 0 && /WARN t15 \(stage S0\) — 1 finding/.test(b.stdout), b.stdout);
   ok('T15 finding title: cards + kickoff', /\[1\/1\] 2 NC-OPEN decision cards in docs\/plans\/gate-expense_v1\.md — resolve before dispatch \(kickoff\)/.test(b.stdout), b.stdout);
-  ok('T15 where names file:line', /where    : docs\/plans\/gate-expense_v1\.md:3 — "NC-OPEN" on line\(s\) 3, 4/.test(b.stdout), b.stdout);
+  ok('T15 where names file:line + ledger-row semantics', /where    : docs\/plans\/gate-expense_v1\.md:3 — open decision-ledger row\(s\) "NC-OPEN" on line\(s\) 3, 4/.test(b.stdout), b.stdout);
   ok('T15 fix suggests resolving cards', /send the open cards to the owner as one numbered batch/.test(b.stdout), b.stdout);
   const bs = run(['check', t, '--strict']);
   ok('T15 --strict exit 1', bs.status === 1 && /FAIL t15 \(stage S0\)/.test(bs.stdout), bs.stdout);
@@ -438,6 +446,92 @@ console.log('T17 Windsurf .windsurf/ directory shim detection');
   const r3 = run(['init', t2, '--owner', 'Alex']);
   const windsurfLines = r3.stdout.split('\n').filter((l) => l.includes('.windsurf/rules/agents.md'));
   ok('T17 both markers → single suggestion (.windsurfrules wins)', r3.status === 0 && windsurfLines.length === 1 && /detected \.windsurfrules/.test(windsurfLines[0]), windsurfLines.join('|'));
+}
+
+// ---- T18: NC-OPEN false positives (walkthrough blocker 2) ----
+console.log('T18 NC-OPEN false positives — template copy / real card / enum row');
+{
+  const t = join(root, 't18');
+  mkdirSync(t);
+  run(['init', t, '--stage', 'S0', '--owner', 'me']);
+
+  // a) template copied unmodified as a real gate doc: teaching prose (the
+  //    kickoff rule, the grep hint) and the example ledger row are NOT cards
+  writeFileSync(join(t, 'docs', 'plans', 'gate-x_v1.md'), GATE_TPL);
+  const tplText = readFileSync(join(t, 'docs', 'plans', 'gate-x_v1.md'), 'utf8');
+  ok('T18 fixture: unmodified copy really carries NC-OPEN text', tplText.includes('NC-OPEN'), 'fixture broken');
+  const a = run(['check', t]);
+  ok('T18 template copy unchanged → 0 findings (PASS)', a.status === 0 && /PASS t18 \(stage S0\)/.test(a.stdout) && !/NC-OPEN/.test(a.stdout), a.stdout);
+  ok('T18 template copy unchanged → --strict PASS too', run(['check', t, '--strict']).status === 0);
+
+  // b) one real open card row appended to the ledger → exactly 1 finding
+  const cardRow = '| NC-4 | Which date format for entries? | ISO-8601 basic | NC-OPEN |';
+  writeFileSync(join(t, 'docs', 'plans', 'gate-x_v1.md'), tplText + cardRow + '\n');
+  const expectLine = (tplText + cardRow + '\n').split('\n').indexOf(cardRow) + 1;
+  const b = run(['check', t]);
+  ok('T18 one real NC-OPEN card → WARN, 1 finding', b.status === 0 && /WARN t18 \(stage S0\) — 1 finding/.test(b.stdout), b.stdout);
+  ok('T18 finding counts the card row, not prose occurrences', /\[1\/1\] 1 NC-OPEN decision card in docs\/plans\/gate-x_v1\.md/.test(b.stdout), b.stdout);
+  ok('T18 where points at the exact ledger row line', b.stdout.includes('docs/plans/gate-x_v1.md:' + expectLine + ' — open decision-ledger row(s) "NC-OPEN" on line(s) ' + expectLine), b.stdout);
+  ok('T18 --strict fails on a real card', run(['check', t, '--strict']).status === 1);
+
+  // c) enum definition rows, placeholder example rows, prose: never counted
+  rmSync(join(t, 'docs', 'plans', 'gate-x_v1.md'), { force: true }); // keep (c) isolated from (b)
+  writeFileSync(join(t, 'docs', 'plans', 'gate-y_v1.md'),
+    '# Gate\n\n' +
+    'Card states, defined once: NC-OPEN / NC-RESOLVED / NC-N/A.\n\n' +
+    '| # | Question | Recommendation | State |\n' +
+    '| --- | --- | --- | --- |\n' +
+    '| NC-1 | status enum demo | — | NC-OPEN / NC-RESOLVED / NC-N/A |\n' +
+    '| NC-2 | <one sentence> | <default proposal> | NC-OPEN |\n\n' +
+    'Reminder prose: this gate doc contains an `NC-OPEN` card until the owner answers.\n');
+  const c = run(['check', t]);
+  ok('T18 enum row + placeholder row + prose → not counted (PASS)', c.status === 0 && /PASS t18 \(stage S0\)/.test(c.stdout), c.stdout);
+}
+
+// ---- T19: start Next is a copyable command (walkthrough blocker 1) ----
+console.log('T19 start Next — copyable command + Optional deep-dive');
+{
+  const t = join(root, 't19');
+  mkdirSync(t);
+  spawnSync('git', ['init', '-q', t], { encoding: 'utf8' });
+  const nextLine = (out) => (out.match(/^Next:  .*$/m) || [''])[0];
+  const a = run(['start', t]);
+  ok('T19 Route A Next is an executable init command', a.status === 0 && /^Next:  (specgate|node) \S+.*--stage S0/.test(nextLine(a.stdout)), nextLine(a.stdout));
+  ok('T19 Route A skill moved to Optional deep-dive line', /^Optional deep-dive: rose-bootstrap skill.*SKILL\.md/m.test(a.stdout), a.stdout);
+  ok('T19 no dangling "the command above"', !/the command above/.test(a.stdout), a.stdout);
+  ok('T19 Route/Next/After stays a 3-line block', a.stdout.split('\n').filter((l) => /^(Route:|Next:  |After:)/.test(l)).length === 3, a.stdout);
+  const b = run(['start', t, '--repo-state', 'existing']);
+  ok('T19 Route B Next is an executable command', b.status === 0 && /^Next:  (specgate|node)\b.*init --adopt/.test(nextLine(b.stdout)), nextLine(b.stdout));
+  ok('T19 Route B Optional deep-dive names the adopt path', /^Optional deep-dive: rose-bootstrap skill \(adopt path\) — /m.test(b.stdout), b.stdout);
+  const c = run(['start', t, '--intent', 'check']);
+  ok('T19 Route check Next is an executable command', c.status === 0 && /^Next:  specgate check/.test(nextLine(c.stdout)), nextLine(c.stdout));
+}
+
+// ---- T20: handoff --init creates INDEX.md (walkthrough blocker 6) + project name ----
+console.log('T20 handoff --init — INDEX.md creation, add-only after, project name');
+{
+  const t = join(root, 't20');
+  mkdirSync(t);
+  const r = run(['handoff', t, '--init', '--topic', 'first', '--date', '2026-10-27']);
+  ok('T20 exit 0', r.status === 0, r.stderr);
+  ok('T20 handoff file created', existsSync(join(t, 'handoffs', 'handoff-2026-10-27-first.md')));
+  ok('T20 INDEX.md created alongside', existsSync(join(t, 'handoffs', 'INDEX.md')), r.stdout);
+  ok('T20 plan lists both files before writing', /Files to write \(2\):/.test(r.stdout) && /\+ handoffs\/INDEX\.md /.test(r.stdout), r.stdout);
+  const idx = readFileSync(join(t, 'handoffs', 'INDEX.md'), 'utf8');
+  ok('T20 INDEX carries table header + row format', /\| Date \| Handoff \| Continue/.test(idx) && /Row format:/.test(idx), idx);
+  ok('T20 Done: 2 written', /Done: 2 written\./.test(r.stdout), r.stdout);
+  ok('T20 Next points at the just-created INDEX', /add the entry to handoffs\/INDEX\.md \(just created/.test(r.stdout), r.stdout);
+
+  const r2 = run(['handoff', t, '--init', '--topic', 'second', '--date', '2026-10-27']);
+  ok('T20 second run: skeleton only (INDEX exists)', r2.status === 0 && /Files to write \(1\):/.test(r2.stdout) && /Done: 1 written\./.test(r2.stdout), r2.stdout);
+  ok('T20 INDEX untouched once it exists (add-only)', readFileSync(join(t, 'handoffs', 'INDEX.md'), 'utf8') === idx);
+
+  // project display name: the substituted AGENTS.md "> Project: X" header wins
+  const t3 = join(root, 't20-name');
+  mkdirSync(t3);
+  writeFileSync(join(t3, 'AGENTS.md'), '# P\n\n<!-- stage: S0 -->\n\n> Project: Ferment · Owner: me · Created: 2026-10-27\n');
+  const r3 = run(['handoff', t3, '--init', '--topic', 'named', '--date', '2026-10-27']);
+  ok('T20 skeleton uses the AGENTS.md project name', r3.status === 0 && readFileSync(join(t3, 'handoffs', 'handoff-2026-10-27-named.md'), 'utf8').includes('Project: Ferment'), r3.stdout);
 }
 
 // ---- summary ----
