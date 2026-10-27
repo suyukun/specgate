@@ -619,7 +619,7 @@ claim('N-04', 'DEMOTE', 'five-minute handoff cost marked estimated in en + zh', 
 claim('N-05', 'DEMOTE', 'endorsement softened: proven / 已验证 gone from the primary docs, shaped-by-two-months wording in place', () => {
   return first(
     present('shaped by two months of daily use', ['README.md'], 'new endorsement'),
-    present('shaped by 真实项目两个月的每日使用', ['README.zh-CN.md'], 'zh new endorsement'),
+    present('这套流程源自真实项目两个月的每日使用', ['README.zh-CN.md'], 'zh new endorsement'),
     gone('proven', PRIMARY, 'old "proven" endorsement removed from README/INSTALL/onboarding'),
     gone('已验证', PRIMARY, 'old 已验证 endorsement removed from the primary docs'),
   );
