@@ -5,7 +5,7 @@
 // Non-interactive runs (no TTY) accept the precheck defaults; the three
 // answer flags route without a terminal. Zero dependencies.
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
-import { basename, join, resolve } from 'node:path';
+import { basename, join, resolve, sep } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import readline from 'node:readline/promises';
 import { UsageError, parseArgs, PKG_ROOT } from './util.mjs';
@@ -42,7 +42,7 @@ init --adopt · fill missing docs -> specgate init · check -> specgate check.
 The rose-bootstrap skill is the optional deep-dive behind Routes A/B.
 Non-interactive runs (no TTY) accept the precheck defaults.`;
 
-const SKILL_PATH = join(PKG_ROOT, 'skills', 'rose-bootstrap', 'SKILL.md');
+const SKILL_PATH = join(PKG_ROOT, 'skills', 'rose-bootstrap', 'SKILL.md').split(sep).join('/');
 
 // Files that say nothing about "is there code here yet". Everything else
 // (src/, lib/, a Makefile, random files) counts as existing content.

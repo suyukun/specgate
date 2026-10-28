@@ -6,12 +6,12 @@
 // exact file and its content are printed, THEN it is written; an existing
 // file is never modified (add-only, same rule as init). Zero dependencies.
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { basename, dirname, join, resolve } from 'node:path';
+import { basename, dirname, join, resolve, sep } from 'node:path';
 import { UsageError, parseArgs, toPosix, projectNameFromAgents, PKG_ROOT } from './util.mjs';
 
 const BOOL_FLAGS = ['init', 'help'];
 
-const SKILL_PATH = join(PKG_ROOT, 'skills', 'rose-handoff', 'SKILL.md');
+const SKILL_PATH = join(PKG_ROOT, 'skills', 'rose-handoff', 'SKILL.md').split(sep).join('/');
 
 const HELP = `specgate handoff — cross-session handoff, written or read (rose-handoff)
 
