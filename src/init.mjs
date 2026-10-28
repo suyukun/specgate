@@ -4,7 +4,7 @@
 // pure copies; AGENTS.md gets only {{OWNER}}/{{PROJECT_NAME}}/{{DATE}} plus the
 // stage-marker substitution. Zero dependencies. Windows-safe: path.join
 // everywhere, manifest keys normalized to forward slashes.
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import readline from 'node:readline/promises';
@@ -236,8 +236,17 @@ export async function runInit(argv) {
   }
   writes.push({ rel: join(docsDir, 'adr', 'adr-template.md'), text: adrTplText, origin: adrTplOrigin });
 
+  // Dogfood fix: a target that already runs the backlog.md CLI keeps its
+  // board under backlog/ — writing docs/BACKLOG.md on top of it would leave
+  // two competing boards. Skip the plain board and say so in the plan.
+  let boardSkipNote = null;
   if (stage !== 'S0') {
-    writes.push({ rel: join(docsDir, 'BACKLOG.md'), text: BOARD_MD, origin: 'generated — plain task board (S1 doc 3)' });
+    const backlogDirPath = join(target, 'backlog');
+    if (existsSync(backlogDirPath) && statSync(backlogDirPath).isDirectory()) {
+      boardSkipNote = 'detected backlog/ directory (backlog.md CLI) — plain board not written; the task board lives in backlog/';
+    } else {
+      writes.push({ rel: join(docsDir, 'BACKLOG.md'), text: BOARD_MD, origin: 'generated — plain task board (S1 doc 3)' });
+    }
     writes.push({ rel: join(docsDir, 'architecture', 'current.md'), text: ARCH_CURRENT, origin: 'generated — architecture current state (S1 doc 4)' });
   }
 
@@ -282,6 +291,7 @@ export async function runInit(argv) {
   console.log('');
   console.log('Files to write (' + (pending.length + shimToWrite.length + 1) + '):');
   for (const w of pending) console.log('  + ' + toPosix(w.rel) + '  — ' + w.origin);
+  if (boardSkipNote) console.log('  ~ ' + toPosix(join(docsDir, 'BACKLOG.md')) + '  — skipped: ' + boardSkipNote);
   for (const s of shimToWrite) console.log('  + ' + toPosix(s.rel) + '  — agent pointer (--yes), detected via ' + s.detected);
   console.log('  + ' + MANIFEST_FILE + '  — ' + manifestWrite.origin);
   if (untouched.length || shimTaken.length) {
