@@ -37,6 +37,9 @@ Options:
   --project-name <name>   Default: target directory name.
   --date <YYYY-MM-DD>     Default: today (local time).
   --docs-dir <dir>        Docs root (default: docs).
+  --lang <en|zh>          Template language. Default: en — byte-identical to
+                          previous releases. zh installs the Chinese template
+                          set shipped in templates/zh/.
   --yes                   Write the suggested agent pointer files without asking.
   -h, --help              Show this help.
 
@@ -176,6 +179,9 @@ export async function runInit(argv) {
   if (!existsSync(target)) throw new UsageError('target directory not found: ' + target);
   const dirArg = positionals[0];
 
+  const lang = flags.lang ?? 'en';
+  if (lang !== 'en' && lang !== 'zh') throw new UsageError('invalid --lang ' + JSON.stringify(lang) + ' (expected en | zh)');
+
   let stage = flags.stage ?? null;
   let stageSource = '--stage';
   if (stage === null) {
@@ -201,17 +207,20 @@ export async function runInit(argv) {
   if (!owner) { owner = 'me'; ownerSource = 'non-interactive fallback (solo mode)'; }
 
   // ---- build the plan; nothing touches disk before the plan is printed ----
+  // Template source dir: templates/ (en, default) or templates/zh/. All
+  // printed origins use this prefix so the plan names the real source.
+  const tplRel = (name) => toPosix(join(...(lang === 'zh' ? ['templates', 'zh'] : ['templates']), name));
   const writes = [];
-  let agents = templateText('AGENTS.template.md');
+  let agents = templateText('AGENTS.template.md', lang);
   agents = agents.split('{{OWNER}}').join(owner)
     .split('{{PROJECT_NAME}}').join(projectName)
     .split('{{DATE}}').join(date);
   const marker = '<!-- stage: ' + stage + ' -->';
   agents = agents.replace('<!-- stage: S0 -->', marker);
   if (!agents.includes(marker)) throw new UsageError('template drift: stage marker missing from AGENTS.template.md');
-  writes.push({ rel: 'AGENTS.md', text: agents, origin: 'templates/AGENTS.template.md — {{OWNER}}/{{PROJECT_NAME}}/{{DATE}} filled, stage marker ' + marker });
+  writes.push({ rel: 'AGENTS.md', text: agents, origin: tplRel('AGENTS.template.md') + ' — {{OWNER}}/{{PROJECT_NAME}}/{{DATE}} filled, stage marker ' + marker });
 
-  writes.push({ rel: join(docsDir, 'plans', 'gate-doc.template.md'), text: templateText('gate-doc.template.md'), origin: 'templates/gate-doc.template.md — pure copy, no substitution' });
+  writes.push({ rel: join(docsDir, 'plans', 'gate-doc.template.md'), text: templateText('gate-doc.template.md', lang), origin: tplRel('gate-doc.template.md') + ' — pure copy, no substitution' });
   writes.push({ rel: join(docsDir, 'adr', 'README.md'), text: ADR_INDEX, origin: 'generated — ADR index (S0 doc 2/2)' });
 
   // ADR template: shipped templates/adr-template.md when present, else the
@@ -219,11 +228,11 @@ export async function runInit(argv) {
   // shipped the ADR template the rose-bootstrap skill asks for).
   let adrTplText, adrTplOrigin;
   try {
-    adrTplText = templateText('adr-template.md');
-    adrTplOrigin = 'templates/adr-template.md — pure copy, no substitution';
+    adrTplText = templateText('adr-template.md', lang);
+    adrTplOrigin = tplRel('adr-template.md') + ' — pure copy, no substitution';
   } catch {
     adrTplText = ADR_TEMPLATE;
-    adrTplOrigin = 'generated — minimal ADR template (Status / Context / Decision / Consequences / Alternatives; templates/adr-template.md not shipped)';
+    adrTplOrigin = 'generated — minimal ADR template (Status / Context / Decision / Consequences / Alternatives; ' + tplRel('adr-template.md') + ' not shipped)';
   }
   writes.push({ rel: join(docsDir, 'adr', 'adr-template.md'), text: adrTplText, origin: adrTplOrigin });
 
@@ -269,7 +278,7 @@ export async function runInit(argv) {
 
   // ---- print the plan, then write (discipline: list before any disk write) ----
   console.log('specgate init — ' + target);
-  console.log('stage ' + stage + ' (' + stageSource + ') · owner "' + owner + '" (' + ownerSource + ') · project "' + projectName + '" · docs root "' + toPosix(docsDir) + '"');
+  console.log('stage ' + stage + ' (' + stageSource + ') · owner "' + owner + '" (' + ownerSource + ') · project "' + projectName + '" · docs root "' + toPosix(docsDir) + '"' + (lang === 'zh' ? ' · lang zh' : ''));
   console.log('');
   console.log('Files to write (' + (pending.length + shimToWrite.length + 1) + '):');
   for (const w of pending) console.log('  + ' + toPosix(w.rel) + '  — ' + w.origin);
@@ -292,10 +301,10 @@ export async function runInit(argv) {
   if (flags.adopt && untouched.length) {
     console.log('');
     console.log('Adopt mode — to merge your AGENTS.md with the shipped template, diff them yourself:');
-    console.log('  diff "' + toPosix(join(PKG_ROOT, 'templates', 'AGENTS.template.md')) + '" "' + toPosix('AGENTS.md') + '"');
+    console.log('  diff "' + toPosix(join(PKG_ROOT, ...(lang === 'zh' ? ['templates', 'zh'] : ['templates']), 'AGENTS.template.md')) + '" "' + toPosix('AGENTS.md') + '"');
   }
   console.log('');
-  console.log('Tip: a fully worked first gate doc ships with the package: ' + toPosix(join(PKG_ROOT, 'templates', 'gate-doc.example.md')));
+  console.log('Tip: a fully worked first gate doc ships with the package: ' + toPosix(join(PKG_ROOT, ...(lang === 'zh' ? ['templates', 'zh'] : ['templates']), 'gate-doc.example.md')));
 
   for (const w of [...pending, ...shimToWrite, manifestWrite]) {
     const abs = join(target, w.rel);

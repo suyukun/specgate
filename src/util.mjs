@@ -21,10 +21,13 @@ export function sha256Hex(data) {
   return createHash('sha256').update(data).digest('hex');
 }
 
-/** Read a shipped template by file name (exact bytes as utf8 text). */
-export function templateText(name) {
-  const p = join(TEMPLATES_DIR, name);
-  if (!existsSync(p)) throw new UsageError('package template missing: ' + name + ' (broken install?)');
+/** Read a shipped template by file name (exact bytes as utf8 text).
+ * lang 'zh' reads the Chinese set under templates/zh/; anything else (and
+ * omitted) reads templates/ — byte-identical to the pre-lang behavior. */
+export function templateText(name, lang) {
+  const dir = lang === 'zh' ? join(TEMPLATES_DIR, 'zh') : TEMPLATES_DIR;
+  const p = join(dir, name);
+  if (!existsSync(p)) throw new UsageError('package template missing: ' + (lang === 'zh' ? 'zh/' : '') + name + ' (broken install?)');
   return readFileSync(p, 'utf8');
 }
 

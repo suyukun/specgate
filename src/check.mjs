@@ -40,6 +40,9 @@ Governance assertions (all findings, like the stage checks above):
 Options:
   --strict                    Findings fail the run (exit 1). Default: WARN, exit 0.
   --docs-dir <dir>            Docs root (default: docs)
+  --lang <en|zh>              Language of the shipped AGENTS template used for
+                             the stale comparison (templates/ vs
+                             templates/zh/). Default: en.
   --agents-file <file>        Default: AGENTS.md
   --plans-subdir <name>       Default: plans
   --adr-subdir <name>         Default: adr
@@ -89,6 +92,9 @@ export function runCheck(argv) {
   if (!existsSync(dir)) throw new UsageError('project directory not found: ' + dir);
   const dirArg = positionals[0];
   const dirName = basename(dir) || dir;
+
+  const lang = flags.lang ?? 'en';
+  if (lang !== 'en' && lang !== 'zh') throw new UsageError('invalid --lang ' + JSON.stringify(lang) + ' (expected en | zh)');
 
   const docsDir = flags['docs-dir'] ?? 'docs';
   const agentsRel = flags['agents-file'] ?? 'AGENTS.md';
@@ -225,16 +231,17 @@ export function runCheck(argv) {
   // AGENTS.md without the marker (adopted, hand-written) is not flagged.
   if (agentsText !== null) {
     const mine = (agentsText.match(/<!--\s*template_version:\s*(\d+)\s*-->/) || [])[1];
+    const shippedRel = toPosix(join(...(lang === 'zh' ? ['templates', 'zh'] : ['templates']), 'AGENTS.template.md'));
     let shipped = null;
     try {
-      shipped = (templateText('AGENTS.template.md').match(/<!--\s*template_version:\s*(\d+)\s*-->/) || [])[1];
+      shipped = (templateText('AGENTS.template.md', lang).match(/<!--\s*template_version:\s*(\d+)\s*-->/) || [])[1];
     } catch { shipped = null; } // unreadable shipped template: skip, other rules still run
     if (mine !== undefined && shipped !== null && Number(mine) < Number(shipped)) {
       push(
         'template_version stale — your ' + toPosix(agentsRel) + ' is behind the shipped template (' + mine + ' < ' + shipped + ')',
-        toPosix(agentsRel) + ' — header "<!-- template_version: ' + mine + ' -->" vs shipped templates/AGENTS.template.md "<!-- template_version: ' + shipped + ' -->"',
+        toPosix(agentsRel) + ' — header "<!-- template_version: ' + mine + ' -->" vs shipped ' + shippedRel + ' "<!-- template_version: ' + shipped + ' -->"',
         'the shipped template version marker "<!-- template_version: ' + shipped + ' -->" in your AGENTS.md (upgrades warn only — specgate never edits your file)',
-        'diff "' + toPosix(join(PKG_ROOT, 'templates', 'AGENTS.template.md')) + '" "' + toPosix(agentsRel) + '", merge by hand, bump the marker to ' + shipped + ', then rerun: specgate check' + (dirArg ? ' ' + dirArg : '')
+        'diff "' + toPosix(join(PKG_ROOT, ...(lang === 'zh' ? ['templates', 'zh'] : ['templates']), 'AGENTS.template.md')) + '" "' + toPosix(agentsRel) + '", merge by hand, bump the marker to ' + shipped + ', then rerun: specgate check' + (dirArg ? ' ' + dirArg : '')
       );
     }
   }
