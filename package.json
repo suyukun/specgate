@@ -1,5 +1,5 @@
 {
-  "name": "specgate",
+  "name": "@smashupcn/specgate",
   "version": "0.1.0",
   "description": "Stage-aware governance for repositories AI agents work in: AGENTS.md scaffold, five-doc kit, and a stage check for CI. Plain markdown, zero config, fully offline.",
   "license": "MIT",

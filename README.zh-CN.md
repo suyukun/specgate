@@ -22,7 +22,7 @@ specgate --version
 
 > 本 README 中所有命令一律 ask-first：agent 先问你，你批准，它才执行。没有任何命令会自己跑。
 
-1. **安装。** 让 agent 跑 `npm i -D specgate`，再用 `specgate --version` 验收——一行版本号＝装好。
+1. **安装。** 让 agent 跑 `npm i -D @smashupcn/specgate`，再用 `specgate --version` 验收——一行版本号＝装好。
 2. **路由。** 在你的 git 仓库里，让 agent 跑 `specgate start`。回答三个问题，它会打印一条确切的下一步命令。跟着一起跑完——新项目与 agent 协作全程约 10 分钟，其中大部分是对话时间：AGENTS.md 是和你一起起草的，不是替你写完的。
 3. **检查。** 让 agent 跑 `specgate check`。预期输出 `PASS <name> (stage S0)`：仓库根有 `AGENTS.md`，`docs/plans/` 有 gate doc 模板，`docs/adr/` 有决策索引。从此这个仓库自带规则书。
 

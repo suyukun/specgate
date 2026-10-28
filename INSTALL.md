@@ -45,9 +45,9 @@ Install-verified is not bootstrapped. Creating `AGENTS.md` starts only if the us
 
 | Method | Command (ask before running) | Fits when |
 | --- | --- | --- |
-| Dev dependency (recommended) | `npm i -D specgate` | One project. The usual case. |
+| Dev dependency (recommended) | `npm i -D @smashupcn/specgate` | One project. The usual case. |
 | Global | `npm i -g specgate` | Many small repos on one machine. |
-| No install | `npx specgate@latest <command>` | Trying it out first. |
+| No install | `npx @smashupcn/specgate@latest <command>` | Trying it out first. |
 
 Before installing, run `specgate --version` once. If it already prints a version, something is installed: keep it, report the version, and offer the update path (rule 4).
 
@@ -65,7 +65,7 @@ If it fails:
 
 `specgate --version` — expected: one line, like `specgate 0.1.0`.
 
-Fails with "command not found"? For dev-dependency installs, try `npx specgate --version`. Still failing: report honestly. Do not create aliases, shims, or PATH edits yourself (rule 5).
+Fails with "command not found"? For dev-dependency installs, try `npx @smashupcn/specgate --version`. Still failing: report honestly. Do not create aliases, shims, or PATH edits yourself (rule 5).
 
 ## Step 4 — Route check (the real run)
 
@@ -98,7 +98,7 @@ At install time, line 3 normally reads "none". Bootstrap adds files later, under
 
 | Symptom | Likely cause | Do this |
 | --- | --- | --- |
-| `command not found` after a dev-dependency install | Local binary not on PATH | Use `npx specgate --version`. Report the fact. Do not edit PATH files. |
+| `command not found` after a dev-dependency install | Local binary not on PATH | Use `npx @smashupcn/specgate --version`. Report the fact. Do not edit PATH files. |
 | `specgate start` exits with "not a git repository" | Precondition | Ask about `git init` once. |
 | Version prints, questions print, user is unsure | Normal | Stop. Read the questions out. Wait. |
 | npm `EACCES` | Permissions | Report; suggest the user's own fix; no sudo. |

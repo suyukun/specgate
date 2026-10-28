@@ -22,7 +22,7 @@ Want a second look? Ask your agent to run `specgate start` in any git repository
 
 > Every command in this README is ask-first. Your agent asks you before running anything. You approve. It runs. Nothing runs on its own.
 
-1. **Install.** Ask your agent to run `npm i -D specgate`. Then verify with `specgate --version` — one version line means installed.
+1. **Install.** Ask your agent to run `npm i -D @smashupcn/specgate`. Then verify with `specgate --version` — one version line means installed.
 2. **Route.** In your git repository, ask your agent to run `specgate start`. Answer three questions. It prints one exact next command. Run it together. A new project takes about 10 minutes with your agent — mostly conversation time: the kit drafts `AGENTS.md` with you, not for you.
 3. **Check.** Ask your agent to run `specgate check`. Expect `PASS <name> (stage S0)`: `AGENTS.md` at the root, the gate-doc template in `docs/plans/`, the ADR index in `docs/adr/`. Your repository now carries its own rulebook.
 
