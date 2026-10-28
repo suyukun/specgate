@@ -43,7 +43,10 @@ function run(args, cwd) {
   return spawnSync(NODE, [CLI, ...(args || [])], { encoding: 'utf8', cwd: cwd || root });
 }
 function sh(cmdLine, cwd) {
-  return spawnSync('/bin/sh', ['-c', cmdLine], { encoding: 'utf8', cwd: cwd || PKG });
+  // Cross-platform: shell:true resolves the platform shell (cmd.exe on win32,
+  // /bin/sh elsewhere). The command lines used here (&& chains, double quotes)
+  // are compatible with both.
+  return spawnSync(cmdLine, { encoding: 'utf8', cwd: cwd || PKG, shell: true });
 }
 function read(rel) {
   return readFileSync(join(PKG, rel), 'utf8');
