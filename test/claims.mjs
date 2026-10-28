@@ -374,7 +374,7 @@ claim('A-04', 'DELETE', 'ADR three-hook machine check deleted for v0.2: READMEs 
     present('这些挂钩的机判校验由 check 在 v0.2 提供', ['README.zh-CN.md'], 'zh deferral sentence'),
     present('(machine-checked in v0.2)', ['README.md'], 'en section heading tagged'),
     present('（机判校验 v0.2 提供）', ['README.zh-CN.md'], 'zh section heading tagged'),
-    eq(sh("grep -rlE 'ADR-|no-adr|adr-exempt' '${PKG}/src/check.mjs' | wc -l").stdout.trim(), '0', 'no ADR-hook checker in check.mjs'),
+    eq(/ADR-|no-adr|adr-exempt/.test(readFileSync(join(PKG, 'src', 'check.mjs'), 'utf8')) ? 1 : 0, 0, 'no ADR-hook checker in check.mjs'),
   );
 });
 
@@ -426,7 +426,7 @@ claim('A-08', 'DELETE', 'pointer existence verification deleted for v0.2: README
     present('arrives in v0.2', ['README.md'], 'en deferral'),
     present('校验 v0.2 提供', ['README.zh-CN.md'], 'zh deferral'),
     absent(/pointer/i, r.stdout, 'no pointer finding in check output'),
-    eq(sh("grep -rliE 'pointer|cursor|copilot|windsurf' '${PKG}/src/check.mjs' | wc -l").stdout.trim(), '0', 'no pointer logic in check.mjs'),
+    eq(/pointer|cursor|copilot|windsurf/i.test(readFileSync(join(PKG, 'src', 'check.mjs'), 'utf8')) ? 1 : 0, 0, 'no pointer logic in check.mjs'),
   );
 });
 
@@ -710,7 +710,7 @@ claim('F-04', 'DELETE', 'ADR numbering/index rules stay as process constraints; 
   return first(
     eq(idx.includes('| ADR | Decision | Status |'), true, 'generated ADR index carries the table header'),
     present('The check enforces these hooks mechanically in v0.2', ['README.md'], 'hook machine check deferred in en'),
-    eq(sh("grep -rlE 'no-adr|adr-exempt' '${PKG}/src/check.mjs' | wc -l").stdout.trim(), '0', 'no mechanical hook checker in check.mjs'),
+    eq(/no-adr|adr-exempt/.test(readFileSync(join(PKG, 'src', 'check.mjs'), 'utf8')) ? 1 : 0, 0, 'no mechanical hook checker in check.mjs'),
   );
 });
 
