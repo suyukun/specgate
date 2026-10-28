@@ -196,7 +196,7 @@ console.log('T11 custom docs root (--docs-dir governance)');
 // ---- T12: --version format (C-01: one line, "specgate <version>") ----
 console.log('T12 --version / -v / version format');
 {
-  const expect = 'specgate 0.1.0';
+  const expect = 'specgate 0.1.1';
   const r1 = run(['--version']);
   ok('T12 --version exit 0', r1.status === 0, r1.stderr);
   ok('T12 --version prints "specgate 0.1.0"', r1.stdout.trim() === expect, r1.stdout);

@@ -20,6 +20,32 @@ All notable changes to this project are documented here. The format follows
 
 ### Security
 
+## [0.1.1] - 2026-10-28
+
+Dogfood release. After v0.1.0 shipped we put it to work onboarding our own
+fifteen internal projects to specgate, and that run surfaced four fixes —
+this patch is entirely driven by them. The default path is unchanged unless
+you opt in: no flag, byte-identical behavior.
+
+### Added
+
+- **`--lang zh` — Chinese template set.** `specgate init --lang zh` and `specgate check --lang zh`
+  (default `en`; the default path behaves exactly as before). The Chinese templates ship in
+  `templates/zh/`: AGENTS template, gate-doc template, worked example, and ADR template — a
+  general-project distillation of the same methodology, not a translation of any internal file.
+- **`check` scans `开工门槛-*.md`.** The NC-OPEN decision-card kickoff scan now matches
+  Chinese-named gate docs in `docs/plans/` alongside `gate-*.md`, with the same
+  `.template.md` / `.example.md` exclusions and the same exact-`NC-OPEN` card rule.
+
+### Fixed
+
+- **`init` no longer writes a second board over `backlog/`.** When the target directory
+  already has a `backlog/` directory (the backlog.md CLI), the plain `docs/BACKLOG.md` is
+  skipped and the run output says so — dogfood onboarding kept producing two competing boards.
+- **`templates/adr-template.md` actually ships.** v0.1.0 fell back to an in-code copy because
+  the file was missing from the package; the real file is packed now, and the Chinese set
+  carries its own counterpart.
+
 ## [0.1.0] - 2026-10-28
 
 First public release of specgate: stage-aware governance for repositories AI agents

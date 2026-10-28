@@ -105,6 +105,8 @@ S0 先装两件。其余文档在项目发出「看得见的信号」后逐件�
 3. `templates/gate-doc.example.md`——一份填好的完整样例
 4. `skills/rose-bootstrap/SKILL.md` 与 `skills/rose-handoff/SKILL.md`——agent 遵循的流程
 
+模板默认为英文；`specgate init --lang zh` 安装 `templates/zh/` 中的中文套件（`specgate check --lang zh` 按中文模板比对版本），`specgate check` 在 `gate-*.md` 之外同时扫描 `开工门槛-*.md` 门槛稿。
+
 ---
 
 *specgate 是面向 AI 编码 agent 的开源治理套件。它创建的一切都留在你的仓库里。*

@@ -63,7 +63,7 @@ If it fails:
 
 ## Step 3 — Verify
 
-`specgate --version` — expected: one line, like `specgate 0.1.0`.
+`specgate --version` — expected: one line, like `specgate 0.1.1`.
 
 Fails with "command not found"? For dev-dependency installs, try `npx @smashupcn/specgate --version`. Still failing: report honestly. Do not create aliases, shims, or PATH edits yourself (rule 5).
 

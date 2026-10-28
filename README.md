@@ -105,6 +105,8 @@ Tools change how they read rules. This matrix was verified against documentation
 3. `templates/gate-doc.example.md` — a fully filled batch
 4. `skills/rose-bootstrap/SKILL.md` and `skills/rose-handoff/SKILL.md` — the flows your agent follows
 
+Templates ship in English by default. `specgate init --lang zh` installs the Chinese set from `templates/zh/` (`specgate check --lang zh` compares against it), and `specgate check` scans `开工门槛-*.md` gate docs alongside `gate-*.md`.
+
 ---
 
 *specgate is an open-source governance kit for AI coding agents. Everything it creates stays in your repository.*
