@@ -28,7 +28,8 @@ Per-stage requirements (five-doc kit):
             "<!-- design: exempt -->" appears in AGENTS.md
 
 Governance assertions (all findings, like the stage checks above):
-  kickoff   docs/plans/gate-*.md (the shipped template/example copies excluded)
+  kickoff   docs/plans/gate-*.md and 开工门槛-*.md (the shipped template/example
+            copies excluded)
             must contain zero open decision cards — ledger table rows whose
             State cell reads exactly "NC-OPEN". Enum definition rows (naming
             NC-OPEN together with NC-RESOLVED) and unfilled <...> example rows
@@ -256,7 +257,11 @@ export function runCheck(argv) {
   let gateEntries = [];
   try { gateEntries = readdirSync(join(dir, plansRel)); } catch { /* no plans dir: per-stage rules already cover it */ }
   for (const fname of gateEntries.sort()) {
-    if (!fname.startsWith('gate-') || !fname.endsWith('.md')) continue;
+    // Chinese-named gate docs (开工门槛-*.md, the zh template set) scan under
+    // the same rules as gate-*.md: same .template.md/.example.md exclusions,
+    // same exact-NC-OPEN card semantics below.
+    if (!fname.endsWith('.md')) continue;
+    if (!fname.startsWith('gate-') && !fname.startsWith('开工门槛-')) continue;
     if (fname.endsWith('.template.md') || fname.endsWith('.example.md')) continue;
     let text;
     try { text = readFileSync(join(dir, plansRel, fname), 'utf8').replace(/\r\n/g, '\n'); } catch { continue; }
