@@ -40,5 +40,14 @@
     "gate",
     "checklist",
     "cli"
-  ]
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/suyukun/specgate.git"
+  },
+  "homepage": "https://github.com/suyukun/specgate#readme",
+  "bugs": {
+    "url": "https://github.com/suyukun/specgate/issues"
+  },
+  "author": "suyukun"
 }
