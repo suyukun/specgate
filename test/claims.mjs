@@ -149,10 +149,12 @@ function modifiedLines(repoDir) {
 }
 /** Structured npm pack --dry-run listing (JSON is stable across npm output styles). */
 function packListing() {
-  const p = spawnSync('/usr/local/bin/npm', ['pack', '--dry-run', '--ignore-scripts', '--json'], {
-    encoding: 'utf8', cwd: PKG, timeout: 180000,
-    env: { ...process.env, PATH: '/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin' },
-  });
+  // Cross-platform npm invocation: prefer the npm-cli.js that runs us (npm_execpath),
+  // else fall back to `npm` on PATH (shell needed on win32 where npm is npm.cmd).
+  const cli = process.env.npm_execpath || null;
+  const p = cli
+    ? spawnSync(process.execPath, [cli, 'pack', '--dry-run', '--ignore-scripts', '--json'], { encoding: 'utf8', cwd: PKG, timeout: 180000 })
+    : spawnSync('npm', ['pack', '--dry-run', '--ignore-scripts', '--json'], { encoding: 'utf8', cwd: PKG, timeout: 180000, shell: process.platform === 'win32' });
   if (p.status !== 0) return { status: p.status, paths: [], entry: null };
   const raw = String(p.stdout || '');
   const start = raw.indexOf('[');
