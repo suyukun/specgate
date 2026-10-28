@@ -2,6 +2,8 @@
 // claims.mjs — machine-checkable gate for all 51 rows of
 // docs/plans/首发承诺面_20261028.md, dispositioned by
 // docs/plans/承诺面处置批复_20261027.md. Release gate G1 evidence.
+// v0.1.1 appended the L-01..L-06 dogfood-patch claims (scope: the four
+// shipped fixes); the original 51 rows are untouched and must stay green.
 //
 // Black-box style (same as test/smoke.mjs): spawn the real CLI through
 // child_process and assert exit codes / output; grep the shipped product docs
@@ -18,7 +20,8 @@
 //                           (wording present / old wording gone / no half-wired
 //                           checker in src); the walkthrough itself stays human.
 //
-// The denominator is fixed at 51. Do not redefine it. Exit 0 = all PASS.
+// The denominator was fixed at 51 for v0.1.0 and grew to 57 in v0.1.1 by
+// appending the L section — rows are never removed or renumbered. Exit 0 = all PASS.
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
@@ -30,7 +33,7 @@ const PKG = fileURLToPath(new URL('..', import.meta.url));
 const CLI = join(PKG, 'src', 'cli.mjs');
 const NODE = process.execPath;
 const root = mkdtempSync(join(tmpdir(), 'specgate-claims-'));
-const TOTAL = 51; // fixed denominator — never redefine
+const TOTAL = 57; // fixed denominator — grows only by appending claims (51 + v0.1.1 L-01..L-06)
 
 // ---------------------------------------------------------------------------
 // helpers
@@ -106,6 +109,7 @@ function claim(id, klass, note, fn) {
 // on purpose), so those gates use scopes that deliberately exclude CHANGELOG.
 const PRIMARY = ['README.md', 'README.zh-CN.md', 'INSTALL.md', 'onboarding.md'];
 const TEMPLATES = ['templates/AGENTS.template.md', 'templates/gate-doc.template.md', 'templates/gate-doc.example.md'];
+const TEMPLATES_ZH = ['templates/zh/AGENTS.template.md', 'templates/zh/gate-doc.template.md', 'templates/zh/gate-doc.example.md', 'templates/zh/adr-template.md'];
 const SKILLS = ['skills/rose-bootstrap/SKILL.md', 'skills/rose-handoff/SKILL.md'];
 const NO_CHANGELOG = [...PRIMARY, ...TEMPLATES, ...SKILLS, 'SECURITY.md', 'CONTRIBUTING.md', 'THIRD_PARTY_NOTICES.md', '.github/ISSUE_TEMPLATE/bug.md', '.github/ISSUE_TEMPLATE/feature.md'];
 const RELEASE_DOCS = [...NO_CHANGELOG, 'CHANGELOG.md'];
@@ -834,6 +838,105 @@ claim('F-12', 'IMPL', 'every command advertised in the READMEs runs with the doc
   );
 });
 
+// ===========================================================================
+// L — v0.1.1 狗粮补丁类 (6) — --lang zh / 开工门槛 scan / backlog skip / ADR file
+// ===========================================================================
+
+claim('L-01', 'IMPL', '--lang zh installs the Chinese template set: zh marker strings, placeholders substituted, byte-identical template copies', () => {
+  const t = join(root, 'l01');
+  mkdirSync(t);
+  const r = run(['init', t, '--owner', '决定人', '--project-name', '示例项目', '--date', '2026-10-28', '--lang', 'zh']);
+  const agents = agentsOf(t);
+  return first(
+    eq(r.status, 0, 'exit init --lang zh'),
+    match(/· lang zh/, r.stdout, 'run header names lang zh'),
+    eq(agents.includes('治理文档套件') && agents.includes('开工门槛'), true, 'zh marker strings in AGENTS.md'),
+    eq(/\{\{(OWNER|PROJECT_NAME|DATE)\}\}/.test(agents), false, 'no named placeholder left'),
+    eq(agents.includes('决定人') && agents.includes('示例项目'), true, 'owner/project substituted'),
+    eq(readFileSync(join(t, 'docs', 'plans', 'gate-doc.template.md'), 'utf8') === read('templates/zh/gate-doc.template.md'), true, 'gate template byte copy of templates/zh/'),
+    eq(readFileSync(join(t, 'docs', 'adr', 'adr-template.md'), 'utf8') === read('templates/zh/adr-template.md'), true, 'ADR template byte copy of templates/zh/'),
+    eq(agents.includes('<!-- stage: S0 -->'), true, 'stage marker substituted'),
+  );
+});
+
+claim('L-02', 'IMPL', 'default path byte-identical to explicit --lang en; bogus --lang exits 2 on both commands; en/zh template_version equal', () => {
+  const a = freshInit('l02-default', ['--project-name', 'Same']);
+  const b = freshInit('l02-en', ['--project-name', 'Same', '--lang', 'en']);
+  const rels = ['AGENTS.md', join('docs', 'plans', 'gate-doc.template.md'), join('docs', 'adr', 'README.md'), join('docs', 'adr', 'adr-template.md')];
+  const same = rels.every((rel) => readFileSync(join(a.dir, rel), 'utf8') === readFileSync(join(b.dir, rel), 'utf8'));
+  const badInit = run(['init', '--lang', 'fr']);
+  const badCheck = run(['check', a.dir, '--lang', 'fr']);
+  const enV = (read('templates/AGENTS.template.md').match(/<!--\s*template_version:\s*(\d+)\s*-->/) || [])[1];
+  const zhV = (read('templates/zh/AGENTS.template.md').match(/<!--\s*template_version:\s*(\d+)\s*-->/) || [])[1];
+  return first(
+    eq(same, true, 'init default === init --lang en, file by file'),
+    eq(badInit.status, 2, 'init --lang fr exit'),
+    eq(badCheck.status, 2, 'check --lang fr exit'),
+    eq(enV !== undefined && enV === zhV, true, 'en/zh template_version equal (' + enV + '/' + zhV + ')'),
+    match(/^PASS Same \(stage S0\)$/m, run(['check', b.dir, '--lang', 'zh']).stdout, 'check --lang zh PASS (zh template same version)'),
+  );
+});
+
+claim('L-03', 'IMPL', 'check scans 开工门槛-*.md like gate-*.md: open card found, .example.md copy excluded, unsuffixed template copy safe', () => {
+  const t = join(root, 'l03');
+  mkdirSync(join(t, 'docs', 'plans'), { recursive: true });
+  writeFileSync(join(t, 'AGENTS.md'), '# P\n\n<!-- stage: S0 -->\n');
+  writeFileSync(join(t, 'docs', 'plans', '开工门槛-登录_v1.md'), '# 门槛\n\n| NC-1 | 币种? | a | NC-OPEN |\n');
+  writeFileSync(join(t, 'docs', 'plans', '开工门槛-doc.example.md'), '# ex\n\n| NC-9 | demo? | a | NC-OPEN |\n');
+  const w = run(['check', t]);
+  const s = run(['check', t, '--strict']);
+  const copy = join(root, 'l03-copy');
+  mkdirSync(join(copy, 'docs', 'plans'), { recursive: true });
+  mkdirSync(join(copy, 'docs', 'adr'), { recursive: true });
+  writeFileSync(join(copy, 'AGENTS.md'), '# P\n\n<!-- stage: S0 -->\n');
+  writeFileSync(join(copy, 'docs', 'adr', 'README.md'), '# idx\n');
+  writeFileSync(join(copy, 'docs', 'plans', '开工门槛-模板.md'), read('templates/zh/gate-doc.template.md'));
+  const c = run(['check', copy]);
+  return first(
+    eq(w.status, 0, 'default WARN exit'),
+    match(/1 NC-OPEN decision card in docs\/plans\/开工门槛-登录_v1\.md — resolve before dispatch \(kickoff\)/, w.stdout, 'finding names the 开工门槛 file'),
+    eq(s.status, 1, 'strict exit'),
+    eq(/开工门槛-doc\.example\.md/.test(w.stdout), false, '.example.md copy excluded'),
+    match(/^PASS l03-copy \(stage S0\)$/, String(c.stdout).trim(), 'unsuffixed template copy: placeholder rows are not cards'),
+  );
+});
+
+claim('L-04', 'IMPL', 'init skips docs/BACKLOG.md when the target already has a backlog/ directory, says so, and check still passes at S1', () => {
+  const t = join(root, 'l04');
+  mkdirSync(join(t, 'backlog', 'tasks'), { recursive: true });
+  const r = run(['init', t, '--stage', 'S1', '--owner', 'me']);
+  return first(
+    eq(r.status, 0, 'exit init S1'),
+    eq(existsSync(join(t, 'docs', 'BACKLOG.md')), false, 'plain board NOT written'),
+    match(/~ docs\/BACKLOG\.md  — skipped: detected backlog\/ directory \(backlog\.md CLI\)/, r.stdout, 'skip explained in the plan'),
+    eq(existsSync(join(t, 'docs', 'architecture', 'current.md')), true, 'architecture doc still installed'),
+    match(/^PASS l04 \(stage S1\)$/m, run(['check', t]).stdout, 'check PASS: backlog/ satisfies the board rule'),
+  );
+});
+
+claim('L-05', 'IMPL', 'templates/adr-template.md ships in the package (zh set packed too) and init installs the shipped bytes', () => {
+  const pack = packListing();
+  const { dir: t } = freshInit('l05');
+  return first(
+    eq(pack.status, 0, 'npm pack --dry-run exit'),
+    eq(pack.paths.includes('templates/adr-template.md'), true, 'en ADR template packed'),
+    eq(TEMPLATES_ZH.every((f) => pack.paths.includes(f)), true, 'zh template set packed'),
+    eq(readFileSync(join(t, 'docs', 'adr', 'adr-template.md'), 'utf8') === read('templates/adr-template.md'), true, 'init installs the shipped file bytes'),
+  );
+});
+
+claim('L-06', 'IMPL', 'zh templates privacy red line: no internal paths, names, numbering schemes, project names, or internal-only concepts', () => {
+  const text = TEMPLATES_ZH.map((f) => read(f)).join('\n');
+  const lower = text.toLowerCase();
+  const literals = ['~/.dsh', '.dsh', 'jack', '苏玉坤', 'rose', 'ontorun', 'oneserve', 'novel-forge', 'aihot', 'aipb', 'mymc', 'y3000', 'ontohot', '经营分析', '制度规范', '五件套', 'local-llm', 'adr-g'];
+  const hit = literals.filter((s) => lower.includes(s));
+  const wordHit = [/\bRL\b/, /\bREA\b/, /\bPPT\b/, /\bP\d{2}\b/].filter((re) => re.test(text));
+  return first(
+    eq(hit.length, 0, 'banned literals absent (' + hit.join(',') + ')'),
+    eq(wordHit.length, 0, 'banned word-boundary tokens absent (RL/REA/PPT/P##)'),
+  );
+});
+
 // ---------------------------------------------------------------------------
 // summary
 // ---------------------------------------------------------------------------
@@ -843,5 +946,5 @@ if (seq !== TOTAL) {
   console.log('BROKEN GATE: executed ' + seq + ' claims, the table defines ' + TOTAL + ' — the denominator is fixed');
   process.exit(1);
 }
-console.log(passed + '/' + TOTAL + ' passed, ' + failed + ' failed' + (failed ? '  — FIX BEFORE SHIPPING (G1 blocked)' : '  — all 51 claims green'));
+console.log(passed + '/' + TOTAL + ' passed, ' + failed + ' failed' + (failed ? '  — FIX BEFORE SHIPPING (G1 blocked)' : '  — all ' + TOTAL + ' claims green'));
 process.exit(failed ? 1 : 0);

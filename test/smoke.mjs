@@ -534,6 +534,79 @@ console.log('T20 handoff --init — INDEX.md creation, add-only after, project n
   ok('T20 skeleton uses the AGENTS.md project name', r3.status === 0 && readFileSync(join(t3, 'handoffs', 'handoff-2026-10-27-named.md'), 'utf8').includes('Project: Ferment'), r3.stdout);
 }
 
+// ---- T21: v0.1.1 dogfood patches (--lang zh / 开工门槛 scan / backlog skip / shipped ADR template) ----
+console.log('T21 v0.1.1 — --lang zh, 开工门槛 scan, backlog skip, adr template shipped');
+{
+  const ZH_DIR = join(PKG, 'templates', 'zh');
+
+  // a) init --lang zh installs the Chinese set
+  const t = join(root, 't21-zh');
+  mkdirSync(t);
+  const a = run(['init', t, '--owner', 'me', '--project-name', '演示', '--lang', 'zh']);
+  ok('T21 init --lang zh exit 0', a.status === 0, a.stderr);
+  const zhAgents = readFileSync(join(t, 'AGENTS.md'), 'utf8');
+  ok('T21 zh AGENTS.md marker strings', zhAgents.includes('治理文档套件') && zhAgents.includes('开工门槛'), zhAgents.slice(0, 120));
+  ok('T21 zh no named placeholders left', !/\{\{(OWNER|PROJECT_NAME|DATE)\}\}/.test(zhAgents));
+  ok('T21 zh stage marker S0', zhAgents.includes('<!-- stage: S0 -->'));
+  ok('T21 zh gate template byte copy', readFileSync(join(t, 'docs', 'plans', 'gate-doc.template.md'), 'utf8') === readFileSync(join(ZH_DIR, 'gate-doc.template.md'), 'utf8'));
+  ok('T21 zh ADR template byte copy', readFileSync(join(t, 'docs', 'adr', 'adr-template.md'), 'utf8') === readFileSync(join(ZH_DIR, 'adr-template.md'), 'utf8'));
+  ok('T21 zh run header names lang', /· lang zh/.test(a.stdout), a.stdout.split('\n')[1]);
+  const ca = run(['check', t]);
+  ok('T21 check PASS on zh project (default lang)', ca.status === 0 && /PASS 演示 \(stage S0\)/.test(ca.stdout), ca.stdout);
+  const cz = run(['check', t, '--lang', 'zh']);
+  ok('T21 check --lang zh PASS', cz.status === 0 && /PASS 演示 \(stage S0\)/.test(cz.stdout), cz.stdout);
+  const vOf = (p) => (readFileSync(p, 'utf8').match(/<!-- template_version: (\d+) -->/) || [])[1];
+  ok('T21 zh/en template_version equal', vOf(join(PKG, 'templates', 'AGENTS.template.md')) === vOf(join(ZH_DIR, 'AGENTS.template.md')), 'version mismatch');
+
+  // b) default === --lang en
+  const d1 = join(root, 't21-dflt');
+  mkdirSync(d1);
+  run(['init', d1, '--owner', 'me', '--project-name', 'Same']);
+  const e1 = join(root, 't21-en');
+  mkdirSync(e1);
+  run(['init', e1, '--owner', 'me', '--project-name', 'Same', '--lang', 'en']);
+  ok('T21 default init identical to --lang en', readFileSync(join(d1, 'AGENTS.md'), 'utf8') === readFileSync(join(e1, 'AGENTS.md'), 'utf8'));
+
+  // c) bogus --lang rejected by both commands
+  ok('T21 init --lang fr exit 2', run(['init', '--lang', 'fr']).status === 2);
+  ok('T21 check --lang fr exit 2', run(['check', d1, '--lang', 'fr']).status === 2);
+
+  // d) check scans 开工门槛-*.md
+  const t2 = join(root, 't21-gate');
+  mkdirSync(join(t2, 'docs', 'plans'), { recursive: true });
+  mkdirSync(join(t2, 'docs', 'adr'), { recursive: true });
+  writeFileSync(join(t2, 'AGENTS.md'), '# P\n\n<!-- stage: S0 -->\n');
+  writeFileSync(join(t2, 'docs', 'adr', 'README.md'), '# idx\n');
+  writeFileSync(join(t2, 'docs', 'plans', '开工门槛-登录_v1.md'), '# 门槛\n\n| NC-1 | 币种? | a | NC-OPEN |\n');
+  writeFileSync(join(t2, 'docs', 'plans', '开工门槛-notes.example.md'), '# ex\n\n| NC-9 | demo? | a | NC-OPEN |\n');
+  const g1 = run(['check', t2]);
+  ok('T21 开工门槛 NC-OPEN → WARN naming the file', g1.status === 0 && /1 NC-OPEN decision card in docs\/plans\/开工门槛-登录_v1\.md/.test(g1.stdout), g1.stdout);
+  ok('T21 .example.md suffix excluded', !/开工门槛-notes\.example\.md/.test(g1.stdout), g1.stdout);
+  ok('T21 开工门槛 strict exit 1', run(['check', t2, '--strict']).status === 1);
+  writeFileSync(join(t2, 'docs', 'plans', '开工门槛-模板.md'), readFileSync(join(ZH_DIR, 'gate-doc.template.md'), 'utf8'));
+  const g2 = run(['check', t2]);
+  ok('T21 zh template copy (no suffix) adds no false card', /— 1 finding/.test(g2.stdout) && !/开工门槛-模板/.test(g2.stdout), g2.stdout);
+
+  // e) backlog/ skips the plain board
+  const t3 = join(root, 't21-backlog');
+  mkdirSync(join(t3, 'backlog', 'tasks'), { recursive: true });
+  const b1 = run(['init', t3, '--stage', 'S1', '--owner', 'me']);
+  ok('T21 backlog/ → no docs/BACKLOG.md', b1.status === 0 && !existsSync(join(t3, 'docs', 'BACKLOG.md')), b1.stdout);
+  ok('T21 skip explained in output', /skipped: detected backlog\/ directory \(backlog\.md CLI\)/.test(b1.stdout), b1.stdout);
+  ok('T21 architecture still installed', existsSync(join(t3, 'docs', 'architecture', 'current.md')));
+  const b2 = run(['check', t3]);
+  ok('T21 check PASS at S1 with backlog/', b2.status === 0 && /PASS t21-backlog \(stage S1\)/.test(b2.stdout), b2.stdout);
+
+  // f) templates/adr-template.md shipped and installed byte-identical (en)
+  ok('T21 templates/adr-template.md exists', existsSync(join(PKG, 'templates', 'adr-template.md')));
+  ok('T21 en init installs shipped ADR template bytes', readFileSync(join(d1, 'docs', 'adr', 'adr-template.md'), 'utf8') === readFileSync(join(PKG, 'templates', 'adr-template.md'), 'utf8'));
+
+  // g) zh templates privacy red line (quick scan; the full claim is L-06)
+  const zhAll = ['AGENTS.template.md', 'gate-doc.template.md', 'gate-doc.example.md', 'adr-template.md'].map((f) => readFileSync(join(ZH_DIR, f), 'utf8')).join('\n').toLowerCase();
+  ok('T21 zh privacy: banned literals absent', !/(~\/\.dsh|\.dsh|jack|苏玉坤|rose|ontorun|oneserve|novel-forge|aihot|aipb|mymc|y3000|ontohot|经营分析|制度规范|五件套|local-llm|adr-g)/.test(zhAll));
+  ok('T21 zh privacy: banned word tokens absent', !(/(^|[^A-Za-z])RL([^A-Za-z]|$)/.test(zhAll) || /(^|[^A-Za-z])REA([^A-Za-z]|$)/.test(zhAll) || /(^|[^A-Za-z])PPT([^A-Za-z]|$)/.test(zhAll) || /(^|[^A-Za-z])P\d{2}([^A-Za-z]|$)/.test(zhAll)));
+}
+
 // ---- summary ----
 rmSync(root, { recursive: true, force: true });
 console.log('');
